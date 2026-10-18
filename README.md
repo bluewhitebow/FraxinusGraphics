@@ -4,41 +4,27 @@
 
 FraxinusGraphics brings RenderGraph rendering, cached cascaded shadows, spatial and temporal upscaling, external drawing interfaces, and GPU probe baking to Unity 2022.3. Four companion packages connect frame rendering, lighting tools and compute ray queries in one source tree.
 
-[Usage guide](docs/Usage.md) · [Packages](#packages) · [Rendering preview](#rendering-preview)
+[Why Fraxinus](#why-fraxinus-instead-of-standard-urp-14) · [Usage guide](docs/Usage.md) · [Source comparison](docs/URP14Comparison.md) · [Rendering preview](#rendering-preview)
 
-## What it provides
+## Why Fraxinus instead of standard URP 14?
 
-### RenderGraph rendering
+Fraxinus targets projects staying on **Unity 2022.3** that need a newer RenderGraph workflow, more control over shadow updates, temporal upscaling, external renderer integration and richer probe-lighting workflows. It adapts newer rendering infrastructure to that engine version and adds the missing baking and runtime integration across the four packages.
 
-Raster, Compute and Unsafe passes declare their resources and dependencies, with resource lifetime management and a Native Render Pass bridge for Unity 2022. Supported passes can merge according to renderer and device conditions. Custom effects use the same graph workflow as the pipeline, with [RenderGraph samples](Packages/Fraxinus-URPExtensions/Samples~/URPRenderGraphSamples) as starting points.
+The upgrade is in rendering control and available workflows. Cached shadows can avoid eligible cascade redraws; lower-resolution rendering can use STP/SGSR reconstruction; APV can be baked and consumed within this URP; custom renderers can share depth and drawing stages. The benefit depends on which of these capabilities a project uses.
 
-### Cached cascaded shadows
+## What changed from URP 14?
 
-Reuse eligible main-light shadow cascades per camera to reduce repeated rendering of unchanged cascades. Choose the first cached cascade and the refresh workload, and explicitly invalidate the cache when scene changes require it. [Cached CSM implementation](Packages/Fraxinus-URPExtensions/Runtime/Extensions/CachedCSM/CachedCascadeShadowMap.cs).
+| Area | Standard URP 14 | Fraxinus change and purpose |
+| --- | --- | --- |
+| RenderGraph | Experimental graph code exists alongside the classic `Execute` path; graph execution is gated. | Uses the newer Raster / Compute / Unsafe Pass model as the pipeline's execution path, with a Native Pass Compiler bridge for Unity 2022. Custom passes declare resources and dependencies in the same workflow. [Sources](docs/URP14Comparison.md#rendergraph). |
+| Main-light shadows | Renders the active shadow cascades without this per-camera CSM reuse policy. | Adds persistent cascade caches, selective refresh and manual invalidation, allowing unchanged eligible cascades to be reused. [Sources](docs/URP14Comparison.md#cached-csm). |
+| Upscaling | Includes bilinear/nearest filtering and FSR 1; TAA is already present. | Adds STP, SGSR1 and SGSR2, including the temporal paths' jitter, motion vectors and history scheduling. Projects gain more reconstruction choices at reduced render scale. [Sources](docs/URP14Comparison.md#upscaling). |
+| HZB and custom renderers | Provides Renderer Features and custom passes. | Adds CPU/GPU depth-pyramid snapshots and camera, depth/normal and shadow hooks for external instancing or terrain backends. [Sources](docs/URP14Comparison.md#hzb-and-external-drawing). |
+| APV baking and rendering | Core already contains APV infrastructure, but URP 14 does not provide the complete APV rendering workflow. | Connects APV to URP materials and supplies standalone Compute baking, adaptive placement, sky occlusion, scenarios and APV streaming. Probe baking needs no DXR. [Sources](docs/URP14Comparison.md#apv). |
+| Relightable volumes | Does not ship this APRTV transport and relighting system. | Adds directional-light/HDR-sky relighting, multiple Baking Sets, two-scenario blending and per-camera Volume controls for baked static geometry. [Sources](docs/URP14Comparison.md#aprtv). |
+| GPU ray queries | Core 14 does not include this companion Compute ray-query library. | Light Transport supplies BVHs, hit/occlusion queries and sampling for the baker and custom integrations. Direct C# access currently requires assembly access to internal APIs. [Sources](docs/URP14Comparison.md#light-transport). |
 
-### STP and SGSR upscaling
-
-Choose STP or SGSR2 for temporal reconstruction, or SGSR1 for spatial upscaling. The pipeline schedules the required camera jitter, motion vectors and history resources for the temporal paths. Render Scale and Upscaling Filter expose the resolution/quality tradeoff in the URP Asset; [the usage guide covers their requirements](docs/Usage.md#feature-controls).
-
-### HZB and external drawing
-
-Depth-pyramid snapshots are available to CPU and GPU consumers, alongside a current-frame HZB path. Camera, depth/normal and shadow drawing hooks let external instancing and terrain renderers participate in the pipeline. These are [integration interfaces](Packages/Fraxinus-URPExtensions/Runtime/UniversalRenderPipelineBRG.cs); consumers supply their own rendering or culling backend.
-
-### Standalone APV baking
-
-Bake adaptive probe lighting through compute ray tracing without DXR. The workflow includes adaptive placement, sky occlusion, Rendering Layers, static material emission and diffuse bounces, with Baking Sets, lighting scenarios and APV streaming for scene data. Baking runs through the editor with progress and cancellation. [Supported inputs and baking details](Packages/Fraxinus-RPCore/Documentation~/StandaloneAPVBaking.md).
-
-### Relightable probe volumes
-
-APRTV stores static geometry transport so directional lights and HDR skies can update probe lighting at runtime. It also supports independently loaded Baking Sets, blending between two baked lighting scenarios, per-camera Volume controls and probe debug views. [APRT workflow](Packages/Fraxinus-RPCore/Documentation~/APRT.md).
-
-### Compute ray queries
-
-Light Transport supplies mesh/instance acceleration structures, closest-hit and occlusion queries, GPU dispatch and sampling sequences for custom lighting calculations. Its Compute backend runs without hardware ray tracing; direct C# integration currently requires assembly access to its internal APIs. [Library interfaces](Packages/Fraxinus-Light-Transport/README.md).
-
-### Rendering workflows and diagnostics
-
-Use Forward, Forward+, Deferred or the separate 2D Renderer, with ShaderGraph, post-processing and camera stacking where supported. RTHandle, Blitter and Volume provide shared rendering utilities; Render Graph Viewer and Rendering Debugger help inspect passes, resources and lighting while developing extensions.
+Forward, Forward+, Deferred, 2D rendering, ShaderGraph, camera stacking, RTHandle, Volume and Blitter are retained foundations that already exist in the URP/Core 14 generation. Fraxinus combines these with the newer graph workflow and rendering diagnostics; they are not counted as new inventions.
 
 ## Packages
 
@@ -48,6 +34,8 @@ Use Forward, Forward+, Deferred or the separate 2D Renderer, with ShaderGraph, p
 | [Fraxinus-URPExtensions](Packages/Fraxinus-URPExtensions/README.md) | `14.0.99` | Frame rendering, shadows, upscaling and external renderer integration. |
 | [Fraxinus-URPGlobal](Packages/Fraxinus-URPGlobal/README.md) | `14.0.99` | Platform light limits shared by C# and generated HLSL. |
 | [Fraxinus-Light-Transport](Packages/Fraxinus-Light-Transport/README.md) | `1.0.1` | GPU acceleration structures, ray queries and sampling. |
+
+Core owns the [graph APIs](Packages/Fraxinus-RPCore/Runtime/RenderGraph/RenderGraph.cs), [Unity 2022 compiler bridge](Packages/Fraxinus-RPCore/Runtime/RenderGraph/Compiler/NativePassCompiler.2022.cs) and [standalone APV baker](Packages/Fraxinus-RPCore/Editor/Lighting/APV/ProbeGIBaking.Standalone.cs). URP connects them to cameras, render passes and [material lighting](Packages/Fraxinus-URPExtensions/ShaderLibrary/GlobalIllumination.hlsl); Light Transport supplies tracing, while Global keeps C# and HLSL configuration aligned. These changes cross package boundaries, so the four packages are maintained together.
 
 ## Start using it
 
@@ -67,6 +55,6 @@ The images were captured from a separate Sponza demo; this repository contains p
 
 ## Compatibility
 
-Custom passes use `RecordRenderGraph`; `Execute`-only extensions require migration. Cached shadows need explicit refresh for changes the cache does not track. Temporal upscalers have camera/device requirements. APRT requires rebaking after geometry or material changes and does not handle dynamic occlusion. See the [usage guide](docs/Usage.md) and package docs for the relevant limits.
+Custom passes use `RecordRenderGraph`; `Execute`-only extensions require migration. Cached shadows need explicit refresh for changes the cache does not track. Temporal upscalers have camera/device requirements. APRT requires rebaking after geometry or material changes and does not handle dynamic occlusion. These capabilities do not guarantee higher FPS or better images in every scene. Projects fully served by standard URP 14 can avoid the maintenance cost of a custom pipeline. See the [comparison](docs/URP14Comparison.md) and [usage guide](docs/Usage.md) for the boundaries.
 
 This is an independently maintained Unity fork. Unity-derived code follows the [Unity Companion License](Packages/Fraxinus-RPCore/LICENSE.md); individual packages retain their third-party notices.
