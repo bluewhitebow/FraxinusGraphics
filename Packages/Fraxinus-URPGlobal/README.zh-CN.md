@@ -2,6 +2,8 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
+[仓库首页](../../README.zh-CN.md) · [使用指南](../../docs/Usage.zh-CN.md)
+
 版本 `14.0.99` · Unity `2022.3` · 包 ID `com.unity.render-pipelines.universal-config`
 
 Fraxinus URP 的共享配置层，让 C# 渲染代码与生成的 HLSL 使用相同的平台常量。

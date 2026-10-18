@@ -2,6 +2,8 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
+[Overview](../../README.md) · [Usage guide](../../docs/Usage.md)
+
 Version `14.0.99` · Unity `2022.3` · Package ID `com.unity.render-pipelines.universal-config`
 
 Shared configuration for Fraxinus URP, keeping platform constants consistent between C# rendering code and generated HLSL.

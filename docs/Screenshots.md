@@ -1,10 +1,10 @@
-# Rendering Features / 渲染特性
+# Probe lighting captures / 探针光照截图
 
 [English README](../README.md) | [中文 README](../README.zh-CN.md)
 
-Captured from the current Sponza demo in Unity 2022.3 on 2026-10-18. Each pair uses the same camera and lighting. Images are unretouched; comparison sheets only resize them and add labels.
+Captured from a separate Sponza demo in Unity 2022.3 on 2026-10-18. Each pair uses the same camera and lighting. Images are unretouched; comparison sheets only resize them and add labels. The demo scene is not included in this repository.
 
-2026-10-18 从当前 Sponza Demo 实际渲染中采集。每组对比固定机位和灯光，画面未调色；对比图仅缩放排版并添加说明。
+2026-10-18 从 Unity 2022.3 中独立的 Sponza Demo 实际渲染中采集。每组对比固定机位和灯光，画面未调色；对比图仅缩放排版并添加说明。Demo 场景不包含在本仓库中。
 
 **APRTV indirect lighting / APRTV 间接光贡献**
 
@@ -26,8 +26,10 @@ GI Only 显示乘材质底色前的间接光响应，正常视图则呈现材质
 
 ![Normal and probe views / 正常画面与探针显示](images/aprtv-probe-view.png)
 
-The scene has 4,563 resident probes. Visible spheres show probe locations and their directional-light / sky lighting response; they are debug markers, not scene geometry.
+The APRTV backend has 4,563 resident probes in this scene. Visible spheres show probe positions and lighting response.
 
-当前场景加载了 4,563 个探针。可见球体用于显示探针位置及其方向光、天空光响应，属于调试标记。
+当前场景通过 APRTV 后端加载了 4,563 个探针。可见球体用于显示探针位置及光照响应。
+
+[Full-size Probe Volume debug capture / 完整尺寸的 Probe Volume 调试截图](images/aprtv-balcony-probes.png)
 
 [Capture parameters and image hashes / 采集参数与图片校验值](capture-manifest.json)

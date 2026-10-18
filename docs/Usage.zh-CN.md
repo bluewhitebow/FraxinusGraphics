@@ -4,6 +4,8 @@
 
 [FraxinusGraphics](../README.zh-CN.md)
 
+本指南面向 **Unity 2022.3**，四个包均应来自同一份 FraxinusGraphics 仓库。截图中的 Sponza 场景属于独立 Demo，不包含在本仓库中。
+
 ## 在项目中使用
 
 将本仓库与 Unity 工程放在同一级目录：
@@ -48,7 +50,7 @@ URP Global 提供共享配置，Light Transport 提供 Compute 光线追踪后�
 
 ## 探针光照
 
-在 **URP Asset > Lighting > Light Probe System** 中选择一种后端：
+在 **URP Asset > Lighting > Light Probe System** 中选择一种后端。APRTV（Adaptive PRT Volumes）是这套探针光照系统的名称，代码、烘焙按钮和详细文档使用简称 **APRT**。
 
 | 后端 | 场景组件 | 烘焙按钮 |
 | --- | --- | --- |
@@ -59,11 +61,25 @@ URP Global 提供共享配置，Light Transport 提供 Compute 光线追踪后�
 2. 打开 **Window > Rendering > Lighting**，选择 **Adaptive Probe Volumes** 或 **Adaptive Precompute Radiance Transfer** 页。单场景选 **Single Scene**；多场景创建 **Baking Set**，加载并保存集合中的全部场景。
 3. 调整探针间距和范围，点击对应烘焙按钮，完成后保存场景。APRT Volume 的 Inspector 中也有 **Bake APRT**。**Generate Lighting** 不会启动独立 APV 烘焙。
 
-要让 APRT 跟随当前灯光变化，将 Baking Set 的 **Relighting > Lighting Source** 设为 **Live Scene Lighting**。在 Global Volume Profile 中添加 **Lighting > APRTV Options**，勾选需要修改的参数覆盖。**GI Intensity** 控制整体贡献；**Sky Intensity** 默认是零，需要调高才能启用场景 Skybox 的贡献。之后修改方向光或天空可重新计算已有传输数据，几何或材质变化则需要重烘焙。
+### APRT 实时重光照
 
-要保存多套 APRT 光照状态，在 URP Asset 开启 **Enable Lighting Scenarios** 和 **Enable Lighting Scenario Blending**。逐个烘焙 Active Scenario，后续状态使用 **Probe Positions > Don't Recalculate** 复用探针布局，通过 **Blend Target / Blend Factor** 预览混合。场景状态烘焙成功后会选中 **Baked Lighting Scenarios**；需要跟随当前灯光时，切回 **Live Scene Lighting**。
+将 Baking Set 的 **Relighting > Lighting Source** 设为 **Live Scene Lighting**。在 Global Volume Profile 中添加 **Lighting > APRTV Options**，勾选需要修改的参数覆盖。**GI Intensity** 控制整体贡献；**Sky Intensity** 默认是零，需要调高才能启用场景 Skybox 的贡献。之后修改方向光或天空可重新计算已有传输数据，几何或材质变化则需要重烘焙。
+
+### APRT 光照场景保存与混合
+
+在 URP Asset 开启 **Enable Lighting Scenarios** 和 **Enable Lighting Scenario Blending**。逐个烘焙 Active Scenario，后续状态使用 **Probe Positions > Don't Recalculate** 复用探针布局，通过 **Blend Target / Blend Factor** 预览混合。场景状态烘焙成功后会选中 **Baked Lighting Scenarios**；需要跟随当前灯光时，切回 **Live Scene Lighting**。
 
 APRT 不处理动态遮挡，也不计算点光和聚光灯的传输。已加载场景的探针单元会整体驻留，应按场景规模规划 Baking Set。APV 的独立 Compute 烘焙不要求 DXR。
+
+## 常见配置问题
+
+| 现象 | 检查项 |
+| --- | --- |
+| 修改 URP Asset 后没有变化 | 检查当前 **Quality** 级别的 **Render Pipeline Asset** 覆盖设置，以及相机选择的 Renderer。 |
+| Generate Lighting 没有烘焙 APV | 在 **Adaptive Probe Volumes** 光照页使用 **Bake Probe Volumes**。 |
+| APRT 不跟随灯光变化 | 选择 **Live Scene Lighting**；光照场景烘焙成功后会切换为 **Baked Lighting Scenarios**。 |
+| APRT 没有天空光贡献 | 在 **APRTV Options** 中勾选 **Sky Intensity** 覆盖，并将其设为大于零。 |
+| 旧 Renderer Feature 不再绘制 | Pass 需实现 `RecordRenderGraph(RenderGraph, ContextContainer)`，仅有 `Execute` 不会执行。 |
 
 ## 详细文档
 

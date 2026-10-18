@@ -2,6 +2,8 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
+[Overview](../../README.md) · [Usage guide](../../docs/Usage.md)
+
 A custom URP fork for Unity 2022.3, providing RenderGraph rendering, cached shadows, external rendering backend interfaces, and upscaling extensions.
 Package version **14.0.99**, package ID `com.unity.render-pipelines.universal`. Use with the matching Fraxinus Core and Config packages.
 

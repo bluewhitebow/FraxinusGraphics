@@ -2,6 +2,8 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
+[Overview](../../README.md) · [Usage guide](../../docs/Usage.md)
+
 A rendering foundation for Unity 2022.3, providing RenderGraph, resource management, probe lighting, and editor tools for the companion pipeline.
 
 Version: `14.0.99` · Package ID: `com.unity.render-pipelines.core`

@@ -2,6 +2,8 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
+[仓库首页](../../README.zh-CN.md) · [使用指南](../../docs/Usage.zh-CN.md)
+
 版本 `1.0.1` · Unity `2022.3` · 包 ID `com.fraxinus.rendering.light-transport`
 
 提供 GPU 射线查询、加速结构和采样工具，作为光照计算与几何查询的基础库。

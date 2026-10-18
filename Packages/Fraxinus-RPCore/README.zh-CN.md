@@ -2,6 +2,8 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
+[仓库首页](../../README.zh-CN.md) · [使用指南](../../docs/Usage.zh-CN.md)
+
 面向 Unity 2022.3 的渲染基础库，为配套管线提供 RenderGraph、资源管理、探针光照和编辑器工具。
 
 版本：`14.0.99` · 包 ID：`com.unity.render-pipelines.core`

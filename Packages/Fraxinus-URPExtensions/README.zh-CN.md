@@ -2,6 +2,8 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
+[仓库首页](../../README.zh-CN.md) · [使用指南](../../docs/Usage.zh-CN.md)
+
 面向 Unity 2022.3 的 URP 定制分支，提供 RenderGraph 渲染流程、缓存阴影、外部绘制后端接口及升采样扩展。
 包版本 **14.0.99**，包 ID 为 `com.unity.render-pipelines.universal`，与配套 Fraxinus Core 和 Config 共同使用。
 

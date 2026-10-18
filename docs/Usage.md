@@ -4,6 +4,8 @@
 
 [FraxinusGraphics](../README.md)
 
+This guide targets **Unity 2022.3** and the four packages from the same FraxinusGraphics checkout. The Sponza scene shown in the screenshots is a separate demo and is not included.
+
 ## Use in a project
 
 Keep this repository beside your Unity project:
@@ -48,7 +50,7 @@ Custom passes must implement `RecordRenderGraph(RenderGraph, ContextContainer)`;
 
 ## Probe lighting
 
-Select one backend in **URP Asset > Lighting > Light Probe System**:
+Select one backend in **URP Asset > Lighting > Light Probe System**. APRTV (Adaptive PRT Volumes) is the probe-lighting system; its code, bake controls and detailed documentation use the shorter name **APRT**.
 
 | Backend | Scene volume | Bake action |
 | --- | --- | --- |
@@ -59,11 +61,25 @@ Select one backend in **URP Asset > Lighting > Light Probe System**:
 2. Open **Window > Rendering > Lighting**. Use the **Adaptive Probe Volumes** or **Adaptive Precompute Radiance Transfer** tab. Choose **Single Scene**, or create a **Baking Set** for multiple scenes and load/save every scene in that set.
 3. Adjust probe spacing and bounds, run the matching bake action, then save the scene. APRT also has **Bake APRT** in its volume Inspector. **Generate Lighting** does not start the standalone APV bake.
 
-For live APRT lighting, set the Baking Set's **Relighting > Lighting Source** to **Live Scene Lighting**. Add **Lighting > APRTV Options** to a Global Volume Profile and check the overrides you want to adjust. **GI Intensity** controls the overall contribution; **Sky Intensity** defaults to zero, so raise it to enable the scene skybox contribution. Directional lights and skybox changes can then relight the baked transport. Geometry or material changes require rebaking.
+### Live APRT relighting
 
-For stored APRT lighting states, enable **Enable Lighting Scenarios** and **Enable Lighting Scenario Blending** on the URP Asset. Bake each Active Scenario, using **Probe Positions > Don't Recalculate** for subsequent states, then preview with **Blend Target / Blend Factor**. A successful scenario bake selects **Baked Lighting Scenarios**; switch back to **Live Scene Lighting** when you want GI to follow current scene lighting.
+Set the Baking Set's **Relighting > Lighting Source** to **Live Scene Lighting**. Add **Lighting > APRTV Options** to a Global Volume Profile and check the overrides you want to adjust. **GI Intensity** controls the overall contribution; **Sky Intensity** defaults to zero, so raise it to enable the scene skybox contribution. Directional lights and skybox changes can then relight the baked transport. Geometry or material changes require rebaking.
+
+### Stored APRT lighting scenarios
+
+Enable **Enable Lighting Scenarios** and **Enable Lighting Scenario Blending** on the URP Asset. Bake each Active Scenario, using **Probe Positions > Don't Recalculate** for subsequent states, then preview with **Blend Target / Blend Factor**. A successful scenario bake selects **Baked Lighting Scenarios**; switch back to **Live Scene Lighting** when you want GI to follow current scene lighting.
 
 APRT does not handle dynamic occlusion or point/spot-light transport. It keeps all probe cells for loaded scenes resident; size Baking Sets accordingly. APV's standalone compute baker does not require DXR.
+
+## Common setup issues
+
+| Symptom | Check |
+| --- | --- |
+| Changes to a URP Asset have no effect | Check the active **Quality** level's **Render Pipeline Asset** override and the camera's selected Renderer. |
+| Generate Lighting does not bake APV | Use **Bake Probe Volumes** in the **Adaptive Probe Volumes** lighting tab. |
+| APRT does not follow edited lights | Select **Live Scene Lighting**; a successful scenario bake switches to **Baked Lighting Scenarios**. |
+| APRT has no sky contribution | In **APRTV Options**, enable the **Sky Intensity** override and set it above zero. |
+| A legacy Renderer Feature no longer renders | Its passes must implement `RecordRenderGraph(RenderGraph, ContextContainer)`; `Execute` alone is not supported. |
 
 ## Further reading
 
