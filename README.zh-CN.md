@@ -51,6 +51,10 @@ Core 承担[渲染图 API](Packages/Fraxinus-RPCore/Runtime/RenderGraph/RenderGr
 
 同一机位、同一灯光下的 APRTV 间接光开关对比。[间接光响应与探针可视化](docs/Screenshots.md)。
 
+![Probe Volume 调试视图，展示探针位置与光照](docs/images/aprtv-balcony-probes.png)
+
+Probe Volume 调试视图（APRTV 后端）。球体显示探针位置及光照响应；场景共加载了 4,563 个探针。
+
 图片来自独立的 Sponza Demo；本仓库提供渲染包源码。
 
 ## 兼容与边界

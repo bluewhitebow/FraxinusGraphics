@@ -51,6 +51,10 @@ The guide includes [feature controls](docs/Usage.md#feature-controls) and [APV/A
 
 Same camera and lighting, with APRTV indirect lighting off and on. [GI response and probe visualization](docs/Screenshots.md).
 
+![Probe Volume debug view with visible probe positions and lighting](docs/images/aprtv-balcony-probes.png)
+
+Probe Volume debug view (APRTV backend). The spheres show probe positions and lighting response; the scene has 4,563 resident probes.
+
 The images were captured from a separate Sponza demo; this repository contains package source.
 
 ## Compatibility
