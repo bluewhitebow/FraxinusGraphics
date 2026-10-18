@@ -1,0 +1,18 @@
+#pragma kernel Sample
+#pragma target 4.5
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Packages/com.unity.render-pipelines.core/Runtime/Lighting/APRT/APRTSampling.hlsl"
+
+RWStructuredBuffer<float4> _SampleResults;
+
+[numthreads(1, 1, 1)]
+void Sample(uint3 id : SV_DispatchThreadID)
+{
+    float3 irradiance;
+    bool sampled = APRTSampleGI(float3(0.5, 0.5, 0.5), float3(0, 1, 0), irradiance);
+    _SampleResults[0] = float4(irradiance, sampled ? 1 : 0);
+    float3 debug;
+    bool debugSampled = APRTSampleDebug(float3(0.5, 0.5, 0.5), float3(0, 1, 0), debug);
+    _SampleResults[1] = float4(debug, debugSampled ? 1 : 0);
+}

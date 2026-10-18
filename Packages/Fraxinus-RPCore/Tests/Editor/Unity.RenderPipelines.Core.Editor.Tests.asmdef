@@ -1,0 +1,13 @@
+{
+    "name": "Unity.RenderPipelines.Core.Editor.Tests",
+    "references": [
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Core.Editor",
+        "Unity.Collections",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": ["Editor"],
+    "allowUnsafeCode": true,
+    "autoReferenced": false,
+    "optionalUnityReferences": ["TestAssemblies"]
+}

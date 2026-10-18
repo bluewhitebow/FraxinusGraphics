@@ -1,0 +1,253 @@
+{
+  "capture_date": "2026-10-18",
+  "renderer": "Fraxinus URP / APRTV",
+  "processing": "Raw PNGs are unchanged. Comparison sheets only resize images and add labels; no color or exposure edits.",
+  "images": [
+    {
+      "image": "images/aprtv-courtyard-on.png",
+      "captured_at_utc": "2026-10-18T15:19:06.6037049Z",
+      "unity": "2022.3.62f3",
+      "resolution": [
+        1280,
+        720
+      ],
+      "sha256": "9aedc020e7bd313503be6e66dc3c68f142eaea419f8d79efbb3dd46bd5a0d171",
+      "camera_position": {
+        "x": 10.998786926269531,
+        "y": 0.8621091842651367,
+        "z": -0.7982597351074219
+      },
+      "camera_rotation": {
+        "x": 0.10781878232955933,
+        "y": 0.6756858825683594,
+        "z": 0.10087272524833679,
+        "w": -0.7222523093223572
+      },
+      "camera_fov": 60,
+      "directional_light_rotation": {
+        "x": 0.7033756971359253,
+        "y": 0.2942488491535187,
+        "z": -0.4906817078590393,
+        "w": 0.4217958450317383
+      },
+      "directional_light_intensity": 3,
+      "directional_light_color": {
+        "r": 1.0,
+        "g": 0.95686274766922,
+        "b": 0.8392156958580017,
+        "a": 1.0
+      },
+      "aprt_gi_intensity": 1,
+      "debug_mode": 0,
+      "resident_probes": 4563,
+      "rebaked": false,
+      "ordinary_ambient_intensity": 0,
+      "reflection_intensity": 0
+    },
+    {
+      "image": "images/aprtv-courtyard-off.png",
+      "captured_at_utc": "2026-10-18T15:19:06.9304803Z",
+      "unity": "2022.3.62f3",
+      "resolution": [
+        1280,
+        720
+      ],
+      "sha256": "aefe26befa0f0def2db385ca5a4763036b7c5dc25cf555da79d13c5fc486d106",
+      "camera_position": {
+        "x": 10.998786926269531,
+        "y": 0.8621091842651367,
+        "z": -0.7982597351074219
+      },
+      "camera_rotation": {
+        "x": 0.10781878232955933,
+        "y": 0.6756858825683594,
+        "z": 0.10087272524833679,
+        "w": -0.7222523093223572
+      },
+      "camera_fov": 60,
+      "directional_light_rotation": {
+        "x": 0.7033756971359253,
+        "y": 0.2942488491535187,
+        "z": -0.4906817078590393,
+        "w": 0.4217958450317383
+      },
+      "directional_light_intensity": 3,
+      "directional_light_color": {
+        "r": 1.0,
+        "g": 0.95686274766922,
+        "b": 0.8392156958580017,
+        "a": 1.0
+      },
+      "aprt_gi_intensity": 0,
+      "debug_mode": 0,
+      "resident_probes": 4563,
+      "rebaked": false,
+      "ordinary_ambient_intensity": 0,
+      "reflection_intensity": 0
+    },
+    {
+      "image": "images/aprtv-balcony-on.png",
+      "captured_at_utc": "2026-10-18T15:30:43.4964328Z",
+      "unity": "2022.3.62f3",
+      "resolution": [
+        1280,
+        720
+      ],
+      "sha256": "4ad6839a30a6af26871a4b7baea10c1efa4d4028ad4cb8e15f4c7fa176c686ce",
+      "camera_position": {
+        "x": -5.587995529174805,
+        "y": 6.560567378997803,
+        "z": 4.485805988311768
+      },
+      "camera_rotation": {
+        "x": 0.04948042333126068,
+        "y": 0.8503124117851257,
+        "z": -0.081204354763031,
+        "w": 0.5176160931587219
+      },
+      "camera_fov": 60,
+      "directional_light_rotation": {
+        "x": 0.7033756971359253,
+        "y": 0.2942488491535187,
+        "z": -0.4906817078590393,
+        "w": 0.4217958450317383
+      },
+      "directional_light_intensity": 3,
+      "directional_light_color": {
+        "r": 1.0,
+        "g": 0.95686274766922,
+        "b": 0.8392156958580017,
+        "a": 1.0
+      },
+      "aprt_gi_intensity": 1,
+      "debug_mode": 0,
+      "resident_probes": 4563,
+      "rebaked": false,
+      "ordinary_ambient_intensity": 0,
+      "reflection_intensity": 0
+    },
+    {
+      "image": "images/aprtv-balcony-off.png",
+      "captured_at_utc": "2026-10-18T15:30:43.9006604Z",
+      "unity": "2022.3.62f3",
+      "resolution": [
+        1280,
+        720
+      ],
+      "sha256": "ee57fc19b777f360b4a8d1a49915e799a70710467b96fd3d6dec984b132a482a",
+      "camera_position": {
+        "x": -5.587995529174805,
+        "y": 6.560567378997803,
+        "z": 4.485805988311768
+      },
+      "camera_rotation": {
+        "x": 0.04948042333126068,
+        "y": 0.8503124117851257,
+        "z": -0.081204354763031,
+        "w": 0.5176160931587219
+      },
+      "camera_fov": 60,
+      "directional_light_rotation": {
+        "x": 0.7033756971359253,
+        "y": 0.2942488491535187,
+        "z": -0.4906817078590393,
+        "w": 0.4217958450317383
+      },
+      "directional_light_intensity": 3,
+      "directional_light_color": {
+        "r": 1.0,
+        "g": 0.95686274766922,
+        "b": 0.8392156958580017,
+        "a": 1.0
+      },
+      "aprt_gi_intensity": 0,
+      "debug_mode": 0,
+      "resident_probes": 4563,
+      "rebaked": false,
+      "ordinary_ambient_intensity": 0,
+      "reflection_intensity": 0
+    },
+    {
+      "image": "images/aprtv-balcony-gi-only.png",
+      "captured_at_utc": "2026-10-18T15:30:44.3626240Z",
+      "unity": "2022.3.62f3",
+      "resolution": [
+        1280,
+        720
+      ],
+      "sha256": "36728c632a23e953536bc4d068a0dda1d7cb1e430499aeed8b0a2d6a37d849c6",
+      "camera_position": {
+        "x": -5.587995529174805,
+        "y": 6.560567378997803,
+        "z": 4.485805988311768
+      },
+      "camera_rotation": {
+        "x": 0.04948042333126068,
+        "y": 0.8503124117851257,
+        "z": -0.081204354763031,
+        "w": 0.5176160931587219
+      },
+      "camera_fov": 60,
+      "directional_light_rotation": {
+        "x": 0.7033756971359253,
+        "y": 0.2942488491535187,
+        "z": -0.4906817078590393,
+        "w": 0.4217958450317383
+      },
+      "directional_light_intensity": 3,
+      "directional_light_color": {
+        "r": 1.0,
+        "g": 0.95686274766922,
+        "b": 0.8392156958580017,
+        "a": 1.0
+      },
+      "aprt_gi_intensity": 1,
+      "debug_mode": 5,
+      "resident_probes": 4563,
+      "rebaked": false,
+      "ordinary_ambient_intensity": 0,
+      "reflection_intensity": 0
+    },
+    {
+      "image": "images/aprtv-balcony-probes.png",
+      "captured_at_utc": "2026-10-18T15:30:47.8177082Z",
+      "unity": "2022.3.62f3",
+      "resolution": [
+        1280,
+        720
+      ],
+      "sha256": "0fcc5253b67b72c1ea5d471551385bf8b101fd363a09e55228ff2435e6019b5d",
+      "camera_position": {
+        "x": -5.587995529174805,
+        "y": 6.560567378997803,
+        "z": 4.485805988311768
+      },
+      "camera_rotation": {
+        "x": 0.04948042333126068,
+        "y": 0.8503124117851257,
+        "z": -0.081204354763031,
+        "w": 0.5176160931587219
+      },
+      "camera_fov": 60,
+      "directional_light_rotation": {
+        "x": 0.7033756971359253,
+        "y": 0.2942488491535187,
+        "z": -0.4906817078590393,
+        "w": 0.4217958450317383
+      },
+      "directional_light_intensity": 3,
+      "directional_light_color": {
+        "r": 1.0,
+        "g": 0.95686274766922,
+        "b": 0.8392156958580017,
+        "a": 1.0
+      },
+      "aprt_gi_intensity": 1,
+      "debug_mode": 0,
+      "resident_probes": 4563,
+      "rebaked": false,
+      "ordinary_ambient_intensity": 0,
+      "reflection_intensity": 0
+    }
+  ]
+}

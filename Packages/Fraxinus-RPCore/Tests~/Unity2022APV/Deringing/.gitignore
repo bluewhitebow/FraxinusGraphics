@@ -1,0 +1,4 @@
+bin/
+obj/
+result.json
+!Verify.csproj

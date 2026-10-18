@@ -1,0 +1,897 @@
+{
+  "nativeUnityVersion": "6000.0.31f1",
+  "nativeResourceSha256": "5481b905369811c809a02d41b0adc15e82234a6d3263a0726510cc59021a93a2",
+  "tables": [
+    {
+      "name": "SobolOwenScrambled256",
+      "width": 256,
+      "height": 256,
+      "samples": [
+        {
+          "x": 0,
+          "y": 0,
+          "topDownByte": 32,
+          "bottomUpByte": 214
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "topDownByte": 226,
+          "bottomUpByte": 227
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "topDownByte": 70,
+          "bottomUpByte": 176
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "topDownByte": 246,
+          "bottomUpByte": 200
+        },
+        {
+          "x": 15,
+          "y": 0,
+          "topDownByte": 103,
+          "bottomUpByte": 1
+        },
+        {
+          "x": 127,
+          "y": 0,
+          "topDownByte": 187,
+          "bottomUpByte": 175
+        },
+        {
+          "x": 255,
+          "y": 0,
+          "topDownByte": 176,
+          "bottomUpByte": 4
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "topDownByte": 191,
+          "bottomUpByte": 84
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "topDownByte": 36,
+          "bottomUpByte": 37
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "topDownByte": 191,
+          "bottomUpByte": 76
+        },
+        {
+          "x": 6,
+          "y": 1,
+          "topDownByte": 96,
+          "bottomUpByte": 82
+        },
+        {
+          "x": 15,
+          "y": 1,
+          "topDownByte": 174,
+          "bottomUpByte": 247
+        },
+        {
+          "x": 127,
+          "y": 1,
+          "topDownByte": 101,
+          "bottomUpByte": 120
+        },
+        {
+          "x": 255,
+          "y": 1,
+          "topDownByte": 88,
+          "bottomUpByte": 252
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "topDownByte": 240,
+          "bottomUpByte": 0
+        },
+        {
+          "x": 1,
+          "y": 3,
+          "topDownByte": 152,
+          "bottomUpByte": 153
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "topDownByte": 7,
+          "bottomUpByte": 201
+        },
+        {
+          "x": 6,
+          "y": 3,
+          "topDownByte": 185,
+          "bottomUpByte": 155
+        },
+        {
+          "x": 15,
+          "y": 3,
+          "topDownByte": 40,
+          "bottomUpByte": 88
+        },
+        {
+          "x": 127,
+          "y": 3,
+          "topDownByte": 242,
+          "bottomUpByte": 226
+        },
+        {
+          "x": 255,
+          "y": 3,
+          "topDownByte": 8,
+          "bottomUpByte": 187
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "topDownByte": 71,
+          "bottomUpByte": 162
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "topDownByte": 166,
+          "bottomUpByte": 167
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "topDownByte": 239,
+          "bottomUpByte": 46
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "topDownByte": 154,
+          "bottomUpByte": 184
+        },
+        {
+          "x": 15,
+          "y": 6,
+          "topDownByte": 252,
+          "bottomUpByte": 167
+        },
+        {
+          "x": 127,
+          "y": 6,
+          "topDownByte": 82,
+          "bottomUpByte": 79
+        },
+        {
+          "x": 255,
+          "y": 6,
+          "topDownByte": 197,
+          "bottomUpByte": 123
+        },
+        {
+          "x": 0,
+          "y": 127,
+          "topDownByte": 215,
+          "bottomUpByte": 33
+        },
+        {
+          "x": 1,
+          "y": 127,
+          "topDownByte": 85,
+          "bottomUpByte": 84
+        },
+        {
+          "x": 3,
+          "y": 127,
+          "topDownByte": 86,
+          "bottomUpByte": 163
+        },
+        {
+          "x": 6,
+          "y": 127,
+          "topDownByte": 17,
+          "bottomUpByte": 53
+        },
+        {
+          "x": 15,
+          "y": 127,
+          "topDownByte": 243,
+          "bottomUpByte": 170
+        },
+        {
+          "x": 127,
+          "y": 127,
+          "topDownByte": 149,
+          "bottomUpByte": 140
+        },
+        {
+          "x": 255,
+          "y": 127,
+          "topDownByte": 251,
+          "bottomUpByte": 92
+        },
+        {
+          "x": 0,
+          "y": 255,
+          "topDownByte": 214,
+          "bottomUpByte": 32
+        },
+        {
+          "x": 1,
+          "y": 255,
+          "topDownByte": 227,
+          "bottomUpByte": 226
+        },
+        {
+          "x": 3,
+          "y": 255,
+          "topDownByte": 176,
+          "bottomUpByte": 70
+        },
+        {
+          "x": 6,
+          "y": 255,
+          "topDownByte": 200,
+          "bottomUpByte": 246
+        },
+        {
+          "x": 15,
+          "y": 255,
+          "topDownByte": 1,
+          "bottomUpByte": 103
+        },
+        {
+          "x": 127,
+          "y": 255,
+          "topDownByte": 175,
+          "bottomUpByte": 187
+        },
+        {
+          "x": 255,
+          "y": 255,
+          "topDownByte": 4,
+          "bottomUpByte": 176
+        },
+        {
+          "x": 0,
+          "y": 254,
+          "topDownByte": 84,
+          "bottomUpByte": 191
+        },
+        {
+          "x": 1,
+          "y": 254,
+          "topDownByte": 37,
+          "bottomUpByte": 36
+        },
+        {
+          "x": 3,
+          "y": 254,
+          "topDownByte": 76,
+          "bottomUpByte": 191
+        },
+        {
+          "x": 6,
+          "y": 254,
+          "topDownByte": 82,
+          "bottomUpByte": 96
+        },
+        {
+          "x": 15,
+          "y": 254,
+          "topDownByte": 247,
+          "bottomUpByte": 174
+        },
+        {
+          "x": 127,
+          "y": 254,
+          "topDownByte": 120,
+          "bottomUpByte": 101
+        },
+        {
+          "x": 255,
+          "y": 254,
+          "topDownByte": 252,
+          "bottomUpByte": 88
+        }
+      ]
+    },
+    {
+      "name": "RankingTile256SPP",
+      "width": 128,
+      "height": 1024,
+      "samples": [
+        {
+          "x": 0,
+          "y": 0,
+          "topDownByte": 73,
+          "bottomUpByte": 131
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "topDownByte": 73,
+          "bottomUpByte": 131
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "topDownByte": 255,
+          "bottomUpByte": 77
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "topDownByte": 229,
+          "bottomUpByte": 3
+        },
+        {
+          "x": 15,
+          "y": 0,
+          "topDownByte": 224,
+          "bottomUpByte": 164
+        },
+        {
+          "x": 127,
+          "y": 0,
+          "topDownByte": 58,
+          "bottomUpByte": 34
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "topDownByte": 122,
+          "bottomUpByte": 233
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "topDownByte": 122,
+          "bottomUpByte": 233
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "topDownByte": 68,
+          "bottomUpByte": 74
+        },
+        {
+          "x": 6,
+          "y": 1,
+          "topDownByte": 59,
+          "bottomUpByte": 112
+        },
+        {
+          "x": 15,
+          "y": 1,
+          "topDownByte": 92,
+          "bottomUpByte": 191
+        },
+        {
+          "x": 127,
+          "y": 1,
+          "topDownByte": 91,
+          "bottomUpByte": 78
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "topDownByte": 145,
+          "bottomUpByte": 161
+        },
+        {
+          "x": 1,
+          "y": 3,
+          "topDownByte": 145,
+          "bottomUpByte": 161
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "topDownByte": 131,
+          "bottomUpByte": 71
+        },
+        {
+          "x": 6,
+          "y": 3,
+          "topDownByte": 27,
+          "bottomUpByte": 231
+        },
+        {
+          "x": 15,
+          "y": 3,
+          "topDownByte": 99,
+          "bottomUpByte": 132
+        },
+        {
+          "x": 127,
+          "y": 3,
+          "topDownByte": 212,
+          "bottomUpByte": 88
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "topDownByte": 7,
+          "bottomUpByte": 43
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "topDownByte": 7,
+          "bottomUpByte": 43
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "topDownByte": 98,
+          "bottomUpByte": 23
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "topDownByte": 136,
+          "bottomUpByte": 208
+        },
+        {
+          "x": 15,
+          "y": 6,
+          "topDownByte": 43,
+          "bottomUpByte": 59
+        },
+        {
+          "x": 127,
+          "y": 6,
+          "topDownByte": 16,
+          "bottomUpByte": 165
+        },
+        {
+          "x": 0,
+          "y": 127,
+          "topDownByte": 192,
+          "bottomUpByte": 9
+        },
+        {
+          "x": 1,
+          "y": 127,
+          "topDownByte": 192,
+          "bottomUpByte": 9
+        },
+        {
+          "x": 3,
+          "y": 127,
+          "topDownByte": 93,
+          "bottomUpByte": 31
+        },
+        {
+          "x": 6,
+          "y": 127,
+          "topDownByte": 42,
+          "bottomUpByte": 135
+        },
+        {
+          "x": 15,
+          "y": 127,
+          "topDownByte": 110,
+          "bottomUpByte": 225
+        },
+        {
+          "x": 127,
+          "y": 127,
+          "topDownByte": 106,
+          "bottomUpByte": 17
+        },
+        {
+          "x": 0,
+          "y": 255,
+          "topDownByte": 23,
+          "bottomUpByte": 6
+        },
+        {
+          "x": 1,
+          "y": 255,
+          "topDownByte": 23,
+          "bottomUpByte": 6
+        },
+        {
+          "x": 3,
+          "y": 255,
+          "topDownByte": 87,
+          "bottomUpByte": 92
+        },
+        {
+          "x": 6,
+          "y": 255,
+          "topDownByte": 160,
+          "bottomUpByte": 182
+        },
+        {
+          "x": 15,
+          "y": 255,
+          "topDownByte": 161,
+          "bottomUpByte": 135
+        },
+        {
+          "x": 127,
+          "y": 255,
+          "topDownByte": 23,
+          "bottomUpByte": 189
+        },
+        {
+          "x": 0,
+          "y": 1022,
+          "topDownByte": 233,
+          "bottomUpByte": 122
+        },
+        {
+          "x": 1,
+          "y": 1022,
+          "topDownByte": 233,
+          "bottomUpByte": 122
+        },
+        {
+          "x": 3,
+          "y": 1022,
+          "topDownByte": 74,
+          "bottomUpByte": 68
+        },
+        {
+          "x": 6,
+          "y": 1022,
+          "topDownByte": 112,
+          "bottomUpByte": 59
+        },
+        {
+          "x": 15,
+          "y": 1022,
+          "topDownByte": 191,
+          "bottomUpByte": 92
+        },
+        {
+          "x": 127,
+          "y": 1022,
+          "topDownByte": 78,
+          "bottomUpByte": 91
+        },
+        {
+          "x": 0,
+          "y": 1023,
+          "topDownByte": 131,
+          "bottomUpByte": 73
+        },
+        {
+          "x": 1,
+          "y": 1023,
+          "topDownByte": 131,
+          "bottomUpByte": 73
+        },
+        {
+          "x": 3,
+          "y": 1023,
+          "topDownByte": 77,
+          "bottomUpByte": 255
+        },
+        {
+          "x": 6,
+          "y": 1023,
+          "topDownByte": 3,
+          "bottomUpByte": 229
+        },
+        {
+          "x": 15,
+          "y": 1023,
+          "topDownByte": 164,
+          "bottomUpByte": 224
+        },
+        {
+          "x": 127,
+          "y": 1023,
+          "topDownByte": 34,
+          "bottomUpByte": 58
+        }
+      ]
+    },
+    {
+      "name": "ScramblingTile256SPP",
+      "width": 128,
+      "height": 1024,
+      "samples": [
+        {
+          "x": 0,
+          "y": 0,
+          "topDownByte": 146,
+          "bottomUpByte": 14
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "topDownByte": 125,
+          "bottomUpByte": 119
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "topDownByte": 111,
+          "bottomUpByte": 240
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "topDownByte": 198,
+          "bottomUpByte": 36
+        },
+        {
+          "x": 15,
+          "y": 0,
+          "topDownByte": 52,
+          "bottomUpByte": 162
+        },
+        {
+          "x": 127,
+          "y": 0,
+          "topDownByte": 36,
+          "bottomUpByte": 14
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "topDownByte": 34,
+          "bottomUpByte": 112
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "topDownByte": 69,
+          "bottomUpByte": 157
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "topDownByte": 104,
+          "bottomUpByte": 100
+        },
+        {
+          "x": 6,
+          "y": 1,
+          "topDownByte": 31,
+          "bottomUpByte": 61
+        },
+        {
+          "x": 15,
+          "y": 1,
+          "topDownByte": 232,
+          "bottomUpByte": 74
+        },
+        {
+          "x": 127,
+          "y": 1,
+          "topDownByte": 32,
+          "bottomUpByte": 68
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "topDownByte": 22,
+          "bottomUpByte": 88
+        },
+        {
+          "x": 1,
+          "y": 3,
+          "topDownByte": 85,
+          "bottomUpByte": 255
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "topDownByte": 74,
+          "bottomUpByte": 54
+        },
+        {
+          "x": 6,
+          "y": 3,
+          "topDownByte": 169,
+          "bottomUpByte": 118
+        },
+        {
+          "x": 15,
+          "y": 3,
+          "topDownByte": 241,
+          "bottomUpByte": 233
+        },
+        {
+          "x": 127,
+          "y": 3,
+          "topDownByte": 232,
+          "bottomUpByte": 126
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "topDownByte": 241,
+          "bottomUpByte": 129
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "topDownByte": 115,
+          "bottomUpByte": 96
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "topDownByte": 180,
+          "bottomUpByte": 130
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "topDownByte": 125,
+          "bottomUpByte": 199
+        },
+        {
+          "x": 15,
+          "y": 6,
+          "topDownByte": 73,
+          "bottomUpByte": 142
+        },
+        {
+          "x": 127,
+          "y": 6,
+          "topDownByte": 19,
+          "bottomUpByte": 59
+        },
+        {
+          "x": 0,
+          "y": 127,
+          "topDownByte": 99,
+          "bottomUpByte": 141
+        },
+        {
+          "x": 1,
+          "y": 127,
+          "topDownByte": 5,
+          "bottomUpByte": 164
+        },
+        {
+          "x": 3,
+          "y": 127,
+          "topDownByte": 161,
+          "bottomUpByte": 187
+        },
+        {
+          "x": 6,
+          "y": 127,
+          "topDownByte": 95,
+          "bottomUpByte": 205
+        },
+        {
+          "x": 15,
+          "y": 127,
+          "topDownByte": 114,
+          "bottomUpByte": 178
+        },
+        {
+          "x": 127,
+          "y": 127,
+          "topDownByte": 49,
+          "bottomUpByte": 96
+        },
+        {
+          "x": 0,
+          "y": 255,
+          "topDownByte": 172,
+          "bottomUpByte": 241
+        },
+        {
+          "x": 1,
+          "y": 255,
+          "topDownByte": 35,
+          "bottomUpByte": 90
+        },
+        {
+          "x": 3,
+          "y": 255,
+          "topDownByte": 173,
+          "bottomUpByte": 244
+        },
+        {
+          "x": 6,
+          "y": 255,
+          "topDownByte": 159,
+          "bottomUpByte": 161
+        },
+        {
+          "x": 15,
+          "y": 255,
+          "topDownByte": 137,
+          "bottomUpByte": 240
+        },
+        {
+          "x": 127,
+          "y": 255,
+          "topDownByte": 197,
+          "bottomUpByte": 114
+        },
+        {
+          "x": 0,
+          "y": 1022,
+          "topDownByte": 112,
+          "bottomUpByte": 34
+        },
+        {
+          "x": 1,
+          "y": 1022,
+          "topDownByte": 157,
+          "bottomUpByte": 69
+        },
+        {
+          "x": 3,
+          "y": 1022,
+          "topDownByte": 100,
+          "bottomUpByte": 104
+        },
+        {
+          "x": 6,
+          "y": 1022,
+          "topDownByte": 61,
+          "bottomUpByte": 31
+        },
+        {
+          "x": 15,
+          "y": 1022,
+          "topDownByte": 74,
+          "bottomUpByte": 232
+        },
+        {
+          "x": 127,
+          "y": 1022,
+          "topDownByte": 68,
+          "bottomUpByte": 32
+        },
+        {
+          "x": 0,
+          "y": 1023,
+          "topDownByte": 14,
+          "bottomUpByte": 146
+        },
+        {
+          "x": 1,
+          "y": 1023,
+          "topDownByte": 119,
+          "bottomUpByte": 125
+        },
+        {
+          "x": 3,
+          "y": 1023,
+          "topDownByte": 240,
+          "bottomUpByte": 111
+        },
+        {
+          "x": 6,
+          "y": 1023,
+          "topDownByte": 36,
+          "bottomUpByte": 198
+        },
+        {
+          "x": 15,
+          "y": 1023,
+          "topDownByte": 162,
+          "bottomUpByte": 52
+        },
+        {
+          "x": 127,
+          "y": 1023,
+          "topDownByte": 14,
+          "bottomUpByte": 36
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,890 @@
+#pragma only_renderers d3d11 xboxone xboxseries vulkan metal
+#define UNIFIED_RT_GROUP_SIZE_X 64
+#define UNIFIED_RT_GROUP_SIZE_Y 1
+
+#include "Packages/com.fraxinus.rendering.light-transport/Runtime/UnifiedRayTracing/FetchGeometry.hlsl"
+#include "Packages/com.fraxinus.rendering.light-transport/Runtime/UnifiedRayTracing/TraceRay.hlsl"
+#include "Packages/com.fraxinus.rendering.light-transport/Runtime/UnifiedRayTracing/Common.hlsl"
+#include "Packages/com.fraxinus.rendering.light-transport/Runtime/Sampling/Common.hlsl"
+#define QRNG_METHOD_SOBOL
+#define QRNG_SOBOL_02
+// Reserve 37 dimension pairs per bounce in the standalone sampler. Keep this
+// layout stable across batches and repeated bakes; it does not reproduce the
+// sample sequence of the native RadeonRays probe integrator.
+#define QRNG_SAMPLES_PER_BOUNCE 37
+#include "Packages/com.fraxinus.rendering.light-transport/Runtime/Sampling/QuasiRandom.hlsl"
+
+// NativeProbeSampling follows Unity 6's probe integrator sequence: Sobol +
+// Cranley-Patterson shifts for primary dimensions, then the 256 SPP blue
+// noise tables for continuation/NEE dimensions.
+StructuredBuffer<float> _NativeProbeCranleyPatterson;
+Texture2D<float> _NativeProbeSobolSequence;
+Texture2D<float> _NativeProbeRanking256;
+Texture2D<float> _NativeProbeScrambling256;
+int _NativeProbeSampling;
+int _NativeProbeSamplingFlipY;
+
+float NativeProbeSobol(uint sampleIndex, uint scalarDimension)
+{
+    uint bits = 0u;
+    uint matrixIndex = scalarDimension * 52u;
+    while (sampleIndex != 0u)
+    {
+        if ((sampleIndex & 1u) != 0u)
+            bits ^= _SobolMatricesBuffer[matrixIndex];
+        ++matrixIndex;
+        sampleIndex >>= 1u;
+    }
+    return (float)bits * 2.3283064365386962890625e-10f;
+}
+
+float NativeProbeCP(uint sampleIndex, uint scalarDimension, uint requestProbeIndex)
+{
+    uint shiftIndex = (requestProbeIndex & 511u) * 12u + scalarDimension % 12u;
+    return frac(NativeProbeSobol(sampleIndex, scalarDimension) +
+        _NativeProbeCranleyPatterson[shiftIndex]);
+}
+
+uint NativeProbeTextureRow(uint row, uint height)
+{
+    return _NativeProbeSamplingFlipY != 0 ? height - 1u - row : row;
+}
+
+uint NativeProbeDecodeByte(float value)
+{
+    return (uint)round(saturate(value) * 255.0f);
+}
+
+float NativeProbeBlueNoise256(uint sampleIndex, uint scalarDimension, uint requestProbeIndex)
+{
+    // The native APV expansion dispatch is one-dimensional. Its blue-noise
+    // pixel coordinate is the request lane modulo the 128-wide tile, with a
+    // fixed zero y coordinate (the generic screen sampler uses 128x128).
+    uint tileIndex = (requestProbeIndex & 127u) * 8u + (scalarDimension & 7u);
+    uint2 tileUV = uint2(tileIndex & 127u,
+        NativeProbeTextureRow(tileIndex >> 7u, 1024u));
+    uint rank = NativeProbeDecodeByte(_NativeProbeRanking256.Load(int3(tileUV, 0)));
+    uint scramble = NativeProbeDecodeByte(_NativeProbeScrambling256.Load(int3(tileUV, 0)));
+    uint rankedSample = (sampleIndex & 255u) ^ rank;
+    uint2 sequenceUV = uint2(scalarDimension & 255u,
+        NativeProbeTextureRow(rankedSample, 256u));
+    uint value = NativeProbeDecodeByte(_NativeProbeSobolSequence.Load(int3(sequenceUV, 0))) ^ scramble;
+    // The native APV kernel uses a centered half-bin sample for this table.
+    return (0.5f + (float)value) * (1.0f / 256.0f);
+}
+
+float3 NativeProbePrimarySample3D(uint sampleIndex, uint requestProbeIndex)
+{
+    // APV's primary probe rays compile the native PROBES path, which keeps
+    // Sobol plus Cranley-Patterson rotation. Blue noise is used for diffuse
+    // continuation rays in preparePathRaysFromBounce, not this first ray.
+    return float3(NativeProbeCP(sampleIndex, 0u, requestProbeIndex),
+        NativeProbeCP(sampleIndex, 1u, requestProbeIndex),
+        NativeProbeCP(sampleIndex, 2u, requestProbeIndex));
+}
+
+float3 NativeProbeBounceSample3D(uint sampleIndex, uint nativeBounce, uint requestProbeIndex)
+{
+    uint dimension = nativeBounce * 3u;
+    float3 result = 0.0f;
+    if (sampleIndex < 256u)
+    {
+        result = float3(NativeProbeBlueNoise256(sampleIndex, dimension, requestProbeIndex),
+            NativeProbeBlueNoise256(sampleIndex, dimension + 1u, requestProbeIndex),
+            NativeProbeBlueNoise256(sampleIndex, dimension + 2u, requestProbeIndex));
+    }
+    else
+    {
+        // Native APV switches to the Sobol+CP sequence after the 256-sample
+        // blue-noise table rather than wrapping the table with a dimension shift.
+        result = float3(NativeProbeCP(sampleIndex, dimension, requestProbeIndex),
+            NativeProbeCP(sampleIndex, dimension + 1u, requestProbeIndex),
+            NativeProbeCP(sampleIndex, dimension + 2u, requestProbeIndex));
+    }
+    return result;
+}
+
+#include "StandaloneAPVMaterial.hlsl"
+
+UNIFIED_RT_DECLARE_ACCEL_STRUCT(_AccelStruct);
+
+struct ProbeSH
+{
+    float3 c0; float3 c1; float3 c2; float3 c3;
+    float3 c4; float3 c5; float3 c6; float3 c7; float3 c8;
+    float validity;
+    uint completedDispatch;
+};
+
+struct BakeLight
+{
+    float4 positionRange;
+    float4 directionOuterCos;
+    float4 colorIntensity;
+    float4 innerCosTypeFlags;
+    float4 shape;
+};
+
+StructuredBuffer<float3> _ProbePositions;
+StructuredBuffer<BakeLight> _Lights;
+StructuredBuffer<float> _EnvironmentCdfConditionalBuffer;
+StructuredBuffer<float> _EnvironmentCdfMarginalBuffer;
+RWStructuredBuffer<ProbeSH> _Out;
+int _ProbeCount;
+uint _ProbeIndexOffset;
+// 1 = direct, 2 = indirect, 3 = validity.
+int _PassMode;
+int _SampleCount;
+int _DirectSampleCount;
+int _EnvironmentSampleCount;
+int _SampleStart;
+int _SampleBatchSize;
+uint _DispatchID;
+int _MaxBounces;
+int _MinBounces;
+float _IndirectScale;
+int _LightCount;
+int _EnvironmentCdfConditionalResolution;
+int _EnvironmentCdfMarginalResolution;
+float _EnvironmentCdfNormalization;
+float4 _EnvironmentSH0;
+float4 _EnvironmentSH1;
+float4 _EnvironmentSH2;
+float4 _EnvironmentSH3;
+float4 _EnvironmentSH4;
+float4 _EnvironmentSH5;
+float4 _EnvironmentSH6;
+float4 _EnvironmentSH7;
+float4 _EnvironmentSH8;
+float _EnvironmentIntensity;
+TextureCube<float4> _EnvironmentCube;
+SamplerState sampler_EnvironmentCube;
+int _HasEnvironmentCube;
+// Matches LightingSettings.environmentImportanceSampling
+// (PVREnvironmentImportanceSampling). When disabled Unity's native baker
+// uses uniform-sphere probe environment samples and cosine hemisphere surface
+// samples, even if a sky cube is available.
+int _EnvironmentImportanceSampling;
+float _RayOffset;
+
+uint Hash(uint x)
+{
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x;
+}
+
+float Hash01(uint x) { return (Hash(x) & 0x00ffffffu) / 16777216.0; }
+
+// Independent low-discrepancy sampler using Owen-scrambled Sobol dimension
+// pairs. The installed RadeonRays baker uses a different sampling sequence;
+// parity comparisons must compare converged estimates, not individual paths.
+float StandaloneSobolSample(uint sampleIndex, uint dimension, uint pixelSeed)
+{
+#if defined(QRNG_SOBOL_02)
+    uint index = NestedUniformOwenScramble(sampleIndex, pixelSeed ^ (dimension / 2));
+    return GetOwenScrambledSobolSample(index, dimension & 1,
+        LowBiasHash32(dimension, pixelSeed));
+#else
+    uint scrambleSeed = LowBiasHash32(pixelSeed, dimension);
+    return GetOwenScrambledSobolSample(sampleIndex ^ pixelSeed, dimension,
+        scrambleSeed);
+#endif
+}
+
+float2 StandalonePathSample2D(uint sampleIndex, uint sampleDimension, uint pixelSeed)
+{
+    uint dimension = sampleDimension * 2;
+    return float2(StandaloneSobolSample(sampleIndex, dimension, pixelSeed),
+        StandaloneSobolSample(sampleIndex, dimension + 1, pixelSeed));
+}
+
+// RenderSettings.ambientProbe stores irradiance coefficients. Undo the cosine
+// convolution when using it as a directional miss radiance. The factors are
+// the inverse Lambert convolution for the polynomial SH basis used by APV.
+float3 EvaluateEnvironmentRadiance(float3 direction)
+{
+    float3 result = 0.0f;
+    if (_HasEnvironmentCube != 0)
+    {
+        result = _EnvironmentCube.SampleLevel(sampler_EnvironmentCube, direction, 0).rgb;
+    }
+    else
+    {
+        float x = direction.x;
+        float y = direction.y;
+        float z = direction.z;
+        result = _EnvironmentSH0.rgb;
+        result += _EnvironmentSH1.rgb * (1.5f * y);
+        result += _EnvironmentSH2.rgb * (1.5f * z);
+        result += _EnvironmentSH3.rgb * (1.5f * x);
+        result += _EnvironmentSH4.rgb * (4.0f * x * y);
+        result += _EnvironmentSH5.rgb * (4.0f * y * z);
+        result += _EnvironmentSH6.rgb * (4.0f * (3.0f * z * z - 1.0f));
+        result += _EnvironmentSH7.rgb * (4.0f * x * z);
+        result += _EnvironmentSH8.rgb * (4.0f * (x * x - y * y));
+    }
+    return max(result, 0.0f);
+}
+
+float CdfValue(StructuredBuffer<float> buffer, uint index)
+{
+    return buffer[index];
+}
+
+float SampleCdfCoordinate(StructuredBuffer<float> buffer, uint size, float sample, out uint index)
+{
+    // Keep this search identical to Unity's EnvironmentImportanceSampling
+    // dichotomic search.  The old lower/upper loop stopped with `left` at
+    // size - 2, so the final CDF bin could never be selected.  That matters
+    // for sharp sky features: samples in the final row/column were assigned
+    // to the preceding bin and their UV interpolation escaped its interval.
+    uint i = 0;
+    for (uint halfsize = size >> 1, offset = halfsize; offset > 0; offset >>= 1)
+    {
+        if (sample < CdfValue(buffer, halfsize))
+        {
+            halfsize -= offset >> 1;
+        }
+        else
+        {
+            i += offset;
+            halfsize += offset >> 1;
+        }
+    }
+    index = i;
+    float lower = index == 0 ? 0.0f : CdfValue(buffer, index);
+    float upper = index + 1 == size ? 1.0f : CdfValue(buffer, index + 1);
+    return (index + (sample - lower) / max(upper - lower, 1e-7f)) / size;
+}
+
+float2 SampleEnvironmentUV(float2 random)
+{
+    uint row;
+    float v = SampleCdfCoordinate(_EnvironmentCdfMarginalBuffer,
+        (uint)_EnvironmentCdfMarginalResolution, random.x, row);
+    uint offset = row * (uint)_EnvironmentCdfConditionalResolution;
+    uint column = 0;
+    uint conditionalSize = (uint)_EnvironmentCdfConditionalResolution;
+    for (uint halfsize = conditionalSize >> 1, searchOffset = halfsize;
+         searchOffset > 0; searchOffset >>= 1)
+    {
+        if (random.y < _EnvironmentCdfConditionalBuffer[offset + halfsize])
+        {
+            halfsize -= searchOffset >> 1;
+        }
+        else
+        {
+            column += searchOffset;
+            halfsize += searchOffset >> 1;
+        }
+    }
+    float lower = column == 0 ? 0.0f : _EnvironmentCdfConditionalBuffer[offset + column];
+    float upper = column + 1 == (uint)_EnvironmentCdfConditionalResolution
+        ? 1.0f : _EnvironmentCdfConditionalBuffer[offset + column + 1];
+    float u = (column + (random.y - lower) / max(upper - lower, 1e-7f)) /
+        _EnvironmentCdfConditionalResolution;
+    return float2(u, v);
+}
+
+float3 EnvironmentDirectionFromUV(float2 uv)
+{
+    float phi = 6.28318530717958647692f * (1.0f - uv.x);
+    float cosTheta = 2.0f * uv.y - 1.0f;
+    float sinTheta = sqrt(max(0.0f, 1.0f - cosTheta * cosTheta));
+    // TransformGLtoDX swaps the spherical helper's Y/Z components, yielding
+    // the usual Unity cubemap direction (x, y, z) after conversion.
+    return float3(sinTheta * cos(phi), cosTheta, sinTheta * sin(phi));
+}
+
+// Native environment and probe sphere samplers share the phi/cos(theta)
+// dimension order.
+float3 SampleSphereUniformNative(float2 random)
+{
+    // LightTransport's SphereSample consumes the first scalar as phi and
+    // the second as cos(theta). Keeping this dimension order matters for the
+    // correlated Sobol/CP sequence even though either order is iid-unbiased.
+    float phi = 6.28318530717958647692f * random.x;
+    float cosTheta = 1.0f - 2.0f * random.y;
+    float sinTheta = sqrt(max(0.0f, 1.0f - cosTheta * cosTheta));
+    return float3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
+}
+
+// APV evaluates polynomials without SH basis factors or a Lambert 1/PI.
+// Fold BOTH basis normalizations and the cosine convolution / PI into the
+// projection, equivalent to ConvolveRadianceToIrradiance + ConvertToUnityFormat.
+void AddIrradianceSH(inout ProbeSH sh, float3 value, float3 direction, float weight)
+{
+    float x = direction.x;
+    float y = direction.y;
+    float z = direction.z;
+    sh.c0 += value * (0.079577471545948f * weight);
+    // Unity APV coefficient order is Y, Z, X for L1.
+    sh.c1 += value * (0.159154943091895f * y * weight);
+    sh.c2 += value * (0.159154943091895f * z * weight);
+    sh.c3 += value * (0.159154943091895f * x * weight);
+    sh.c4 += value * (0.298415518297304f * x*y * weight);
+    sh.c5 += value * (0.298415518297304f * y*z * weight);
+    sh.c6 += value * (0.024867959858109f * (3.0f*z*z - 1.0f) * weight);
+    sh.c7 += value * (0.298415518297304f * x*z * weight);
+    sh.c8 += value * (0.074603879574326f * (x*x-y*y) * weight);
+}
+
+float3 SampleLight(BakeLight light, float3 position, float2 u, out float3 toLight, out float distanceToLight)
+{
+    int type = (int)light.innerCosTypeFlags.y;
+    distanceToLight = 1e30;
+    float attenuation = 1;
+    if (type == 1) // Directional
+    {
+        // The diffuse cosine uses the fixed directional-light axis.
+        // JitterLightDirection applies soft-shadow sampling separately to
+        // visibility and direct SH projection.
+        toLight = normalize(-light.directionOuterCos.xyz);
+    }
+    else
+    {
+        float3 delta = light.positionRange.xyz - position;
+        distanceToLight = length(delta);
+        toLight = delta / max(distanceToLight, 1e-4);
+        float range = max(light.positionRange.w, 1e-3);
+        float distanceSqr = max(dot(delta, delta), 0.0001);
+        float factor = distanceSqr / (range * range);
+        float rangeFade = saturate(1.0 - factor * factor);
+        attenuation = rangeFade * rangeFade / distanceSqr;
+        if (type == 0)
+        {
+            float cone = dot(-toLight, normalize(light.directionOuterCos.xyz));
+            float angular = saturate((cone - light.directionOuterCos.w) /
+                max(0.001, light.innerCosTypeFlags.x - light.directionOuterCos.w));
+            attenuation *= angular * angular;
+        }
+    }
+    return light.colorIntensity.rgb * light.colorIntensity.w * attenuation;
+}
+
+float3 JitterLightDirection(BakeLight light, float3 direction, float2 random)
+{
+    // Native LightTransport's PrepareShadowRay uses a concentric disk around
+    // the light direction. For a directional light, pos.w is the penumbra
+    // width in radians and the unit light distance makes it an angular disk.
+    // The jittered ray direction is also the direction accumulated into probe
+    // SH, so soft shadows broaden the direct lobe as in the native baker.
+    if (light.shape.x <= 0.0f)
+        return direction;
+    float3 tangent, bitangent;
+    OrthoBasisFromVector(direction, tangent, bitangent);
+    float2 disk = MapSquareToDisk(random) * light.shape.x;
+    return normalize(direction + tangent * disk.x + bitangent * disk.y);
+}
+
+bool LightVisible(UnifiedRT::DispatchInfo dispatchInfo, UnifiedRT::RayTracingAccelStruct accel,
+    float3 origin, float3 direction, float distanceToLight)
+{
+    UnifiedRT::Ray ray;
+    ray.origin = origin;
+    ray.direction = direction;
+    // Native Light Transport starts shadow rays at an already offset origin
+    // and keeps tMin at zero. Applying the offset a second time changes the
+    // visibility of probes and thin Sponza sheets.
+    ray.tMin = 0.0f;
+    // Native directional shadow rays use DEFAULT_RAY_LENGTH (1e6), rather
+    // than an unbounded IEEE range. Keep that finite bound for parity.
+    ray.tMax = distanceToLight < 1e29 ? distanceToLight : 1e6;
+    return !TraceAPVAnyHit(dispatchInfo, accel, 0xFFFFFFFF, ray, UnifiedRT::kRayFlagNone);
+}
+
+void AddBakedEnvironmentSH(inout ProbeSH sh,
+    UnifiedRT::DispatchInfo dispatchInfo, UnifiedRT::RayTracingAccelStruct accel,
+    float3 probePosition, uint pixelSeed, uint requestProbeIndex)
+{
+    if (_EnvironmentSampleCount <= 0)
+        return;
+    bool hasImportanceData = _HasEnvironmentCube != 0 && _EnvironmentImportanceSampling != 0;
+    float normalization = hasImportanceData ? max(_EnvironmentCdfNormalization, 0.0f) : 0.0f;
+    if (hasImportanceData && normalization <= 0.0f)
+        return;
+    uint sampleCount = (uint)_EnvironmentSampleCount;
+    uint sampleEnd = min(sampleCount, (uint)(_SampleStart + _SampleBatchSize));
+    for (uint sample = (uint)_SampleStart; sample < sampleEnd; ++sample)
+    {
+        float3 primarySample = (_NativeProbeSampling != 0)
+            ? NativeProbePrimarySample3D(sample, requestProbeIndex)
+            : float3(StandalonePathSample2D(sample, 6, pixelSeed), 0.0f);
+        float2 random = primarySample.xy;
+        float3 direction;
+        float pdf;
+        // Unity's volume baker mixes the environment map proposal with a
+        // uniform-sphere proposal. Keep the same 50/50 mixture here. The
+        // branch selector is a third primary sample dimension; using the
+        // mixture density for both branches is the balance-MIS estimator and
+        // avoids the bright/dark bias that appears when a sharp sky feature
+        // is sampled from only the CDF proposal.
+        if (hasImportanceData)
+        {
+            bool useMixture = true;
+            bool sampleEnvironment = primarySample.z > 0.5f;
+            if (sampleEnvironment)
+            {
+                float2 uv = SampleEnvironmentUV(random);
+                direction = EnvironmentDirectionFromUV(uv);
+            }
+            else
+            {
+                direction = SampleSphereUniformNative(random);
+            }
+            // The CDF was built from the unscaled captured cube. Intensity
+            // belongs in the radiance term, not in the proposal density.
+            // Keep the MIS density identical to Unity's EnvironmentMetric:
+            // maximum linear channel, rather than Rec.709 luminance.
+            float3 intensity = EvaluateEnvironmentRadiance(direction);
+            float metric = max(intensity.r, max(intensity.g, intensity.b));
+            float environmentPdf = max(metric * normalization, 0.0f);
+            float uniformPdf = 0.079577471545948f; // 1 / (4 * PI)
+            pdf = useMixture ? 0.5f * (environmentPdf + uniformPdf) : environmentPdf;
+        }
+        else
+        {
+            // Uniform sampling is also the configured non-MIS sky path.
+            direction = SampleSphereUniformNative(random);
+            pdf = 0.079577471545948f; // 1 / (4 * PI)
+        }
+        float3 environment = EvaluateEnvironmentRadiance(direction) * _EnvironmentIntensity;
+        if (all(environment <= 0.0f))
+            continue;
+        if (LightVisible(dispatchInfo, accel, probePosition, direction, 1e30))
+            AddIrradianceSH(sh, environment, direction, rcp(pdf * sampleCount));
+    }
+}
+
+void AddBakedDirectSH(inout ProbeSH sh, UnifiedRT::DispatchInfo dispatchInfo,
+    UnifiedRT::RayTracingAccelStruct accel, float3 probePosition, uint probeSeed,
+    uint requestProbeIndex)
+{
+    ProbeSH direct = (ProbeSH)0;
+    for (int i = 0; i < _LightCount; ++i)
+    {
+        BakeLight light = _Lights[i];
+        // Mixed direct lighting is rendered in real time. Only Baked lights
+        // deposit direct incident energy at the probe. Native LightTransport
+        // uses the jittered soft-shadow direction for the SH projection too.
+        if (((int)light.innerCosTypeFlags.z & 1) == 0) continue;
+        // Native LightTransport launches one thread per direct sample. The
+        // soft-shadow direction is jittered by the light angular radius, and
+        // that same direction is accumulated into probe SH.
+        int samples = max(1, _DirectSampleCount);
+        int sampleEnd = min(samples, _SampleStart + _SampleBatchSize);
+        for (int sample = _SampleStart; sample < sampleEnd; ++sample)
+        {
+            uint sampleSeed = Hash(probeSeed ^ Hash((uint)i + 0x57a9e263u) ^
+                Hash((uint)sample + 0x1f123bb5u));
+            float2 u;
+            if (_NativeProbeSampling != 0)
+                u = NativeProbePrimarySample3D((uint)sample, requestProbeIndex).xy;
+            else
+                u = float2(Hash01(sampleSeed), Hash01(sampleSeed ^ 0x68bc21ebu));
+            float3 toLight;
+            float distanceToLight;
+            float3 energy = SampleLight(light, probePosition, u, toLight, distanceToLight);
+            if (!any(energy > 0))
+                continue;
+
+            float3 sampledDirection = JitterLightDirection(light, toLight, u);
+            if (light.shape.y == 0.0f || LightVisible(dispatchInfo, accel, probePosition, sampledDirection, distanceToLight))
+                // The light buffer carries the native PI conversion in w;
+                // project the resulting radiance directly into Unity's SH
+                // irradiance representation. Indirect NEE applies the
+                // Lambert 1/PI separately below.
+                AddIrradianceSH(direct, energy,
+                    sampledDirection, 1.0f / samples);
+        }
+    }
+
+    sh.c0 += direct.c0;
+    sh.c1 += direct.c1;
+    sh.c2 += direct.c2;
+    sh.c3 += direct.c3;
+    sh.c4 += direct.c4;
+    sh.c5 += direct.c5;
+    sh.c6 += direct.c6;
+    sh.c7 += direct.c7;
+    sh.c8 += direct.c8;
+}
+
+// Unity's native Light Transport baker windows the direct radiance component
+// before it is combined with indirect transport. This includes explicit
+// baked lights and visible emission; environment belongs to indirect. Since cosine
+// convolution is band-wise, applying the same window to our already projected
+// direct irradiance is equivalent.
+void WindowDirectSH(inout ProbeSH sh)
+{
+    sh.c1 *= 0.922066f;
+    sh.c2 *= 0.922066f;
+    sh.c3 *= 0.922066f;
+    sh.c4 *= 0.731864f;
+    sh.c5 *= 0.731864f;
+    sh.c6 *= 0.731864f;
+    sh.c7 *= 0.731864f;
+    sh.c8 *= 0.731864f;
+}
+
+float3 EvaluateDirect(UnifiedRT::DispatchInfo dispatchInfo,
+    UnifiedRT::RayTracingAccelStruct accel, float3 hitPosition, float3 normal,
+    float3 faceNormal, float3 albedo, uint sampleIndex, uint nativeBounce,
+    uint requestProbeIndex, uint sampleSeed)
+{
+    float3 result = 0;
+    for (int lightIndex = 0; lightIndex < _LightCount; ++lightIndex)
+    {
+        BakeLight light = _Lights[lightIndex];
+        int flags = (int)light.innerCosTypeFlags.z;
+        // The indirect integrator evaluates next-event lighting for every
+        // non-realtime light. Baked lights are included here as well: their
+        // direct contribution at the probe is handled by AddBakedDirectSH,
+        // while the same light reaching a first surface and then returning
+        // to the probe is part of indirect transport. Keep a defensive
+        // filter for any future realtime entries in the light buffer.
+        if ((flags & 3) == 0)
+            continue;
+
+        // Native IntegrateIndirectRadiance passes directSampleCount=0; its
+        // indirect paths do not reuse the standalone direct-light budget.
+        // Keep one next-event sample per bounce to match that contract.
+        // Native bounce NEE and continuation use the same dimensions.
+        // The fallback keeps its separate hash stream for light visibility.
+        uint lightSeed = Hash(sampleSeed ^ Hash((uint)lightIndex + 0x57a9e263u) ^
+            Hash(0x1f123bb5u));
+        float3 nativeLightSample = (_NativeProbeSampling != 0)
+            ? NativeProbeBounceSample3D(sampleIndex, nativeBounce, requestProbeIndex)
+            : 0.0f;
+        float2 lightU = (_NativeProbeSampling != 0)
+            ? nativeLightSample.xy
+            : float2(Hash01(lightSeed), Hash01(lightSeed ^ 0x68bc21ebu));
+        float3 toLight;
+        float distanceToLight;
+        float3 irradiance = SampleLight(light, hitPosition, lightU, toLight, distanceToLight);
+        float3 sampledDirection = JitterLightDirection(light, toLight, lightU);
+        float nDotL = saturate(dot(normal, toLight));
+        if (nDotL <= 0 || !any(irradiance > 0))
+            continue;
+        // The shading normal evaluates the diffuse cosine. Offset the
+        // visibility ray along the geometric normal, with an additional
+        // scale-aware error bound to limit self-intersection.
+        if (light.shape.y != 0.0f && !LightVisible(dispatchInfo, accel,
+            OffsetRayOrigin(hitPosition, faceNormal, _RayOffset), sampledDirection, distanceToLight))
+            continue;
+        // LightTransport's diffuse BRDF divides by PI. The same PI is
+        // carried by the punctual light buffer, so retain the native
+        // radiance-to-BRDF conversion exactly once on this path.
+        result += albedo * irradiance * (nDotL * light.innerCosTypeFlags.w * _IndirectScale /
+            3.141592653589793f);
+    }
+
+    return result;
+}
+
+// Unity's non-MIS surface environment path shoots a separate cosine-weighted
+// sky ray at every diffuse hit whose next bounce still exists. The regular GI
+// continuation ray does not accumulate sky on a miss; keeping this as an
+// explicit next-event term is what prevents the probe integrator from counting
+// the environment twice.
+float3 SampleSurfaceEnvironmentDirection(float2 random, float3 normal)
+{
+    // OpenCL HemisphereCosineSample uses the concentric disk map. A polar
+    // map has the same PDF but produces different paths for Sobol samples.
+    float2 disk = MapSquareToDisk(random);
+    float3 localDirection = float3(disk, sqrt(max(0.0f, 1.0f - dot(disk, disk))));
+    float3 tangent, bitangent;
+    OrthoBasisFromVector(normal, tangent, bitangent);
+    return tangent * localDirection.x + bitangent * localDirection.y +
+        normal * localDirection.z;
+}
+
+bool SampleNativeDiffuseContinuation(float2 random, float3 geometryNormal,
+    float3 shadingNormal, float3 wo, out float3 wi, out float pdf)
+{
+    wi = 0.0f;
+    pdf = 0.0f;
+    if (dot(geometryNormal, wo) <= 0.0f)
+        return false;
+    float2 disk = MapSquareToDisk(random);
+    float3 localDirection = float3(disk, sqrt(max(0.0f, 1.0f - dot(disk, disk))));
+    float3 tangent, bitangent;
+    OrthoBasisFromVector(shadingNormal, tangent, bitangent);
+    wi = tangent * localDirection.x + bitangent * localDirection.y +
+        shadingNormal * localDirection.z;
+    pdf = localDirection.z * 0.318309886183791f;
+    return pdf > 0.0f;
+}
+
+void AddSurfaceEnvironmentRadiance(
+    UnifiedRT::DispatchInfo dispatchInfo, UnifiedRT::RayTracingAccelStruct accel,
+    float3 position, float3 interpNormal, float3 geomNormal, float3 albedo,
+    float3 throughput, float3 random, inout float3 radiance)
+{
+    bool useImportance = _HasEnvironmentCube != 0 && _EnvironmentImportanceSampling != 0;
+    bool sampleEnvironmentProposal = useImportance && random.z > 0.5f;
+    float3 direction = sampleEnvironmentProposal
+        ? EnvironmentDirectionFromUV(SampleEnvironmentUV(random.xy))
+        : SampleSurfaceEnvironmentDirection(random.xy, interpNormal);
+    // Smooth normals can sample below a geometric sheet. Unity discards those
+    // environment rays before tracing them, so use the plane normal for this
+    // gate while retaining the interpolated normal for cosine sampling.
+    float cosine = dot(direction, interpNormal);
+    if (dot(direction, geomNormal) <= 0.0f || cosine <= 0.0f)
+        return;
+    float3 origin = OffsetRayOrigin(position, geomNormal, _RayOffset);
+    if (!LightVisible(dispatchInfo, accel, origin, direction, 1e30))
+        return;
+    float3 environment = EvaluateEnvironmentRadiance(direction);
+    float weight = 1.0f;
+    if (useImportance)
+    {
+        float diffusePdf = cosine * 0.318309886183791f;
+        float environmentPdf = max(environment.r, max(environment.g, environment.b)) *
+            max(_EnvironmentCdfNormalization, 0.0f);
+        // Balance heuristic for the equal mixture of sky and cosine proposals.
+        float heuristic = sampleEnvironmentProposal
+            ? environmentPdf / max(diffusePdf + environmentPdf, 1e-20f)
+            : diffusePdf / max(diffusePdf + environmentPdf, 1e-20f);
+        weight = sampleEnvironmentProposal
+            ? 2.0f * heuristic * cosine / max(3.141592653589793f * environmentPdf, 1e-20f)
+            : 2.0f * heuristic;
+    }
+    radiance += throughput * albedo * environment * (weight * _EnvironmentIntensity * _IndirectScale);
+}
+
+void RayGenExecute(UnifiedRT::DispatchInfo dispatchInfo)
+{
+    uint id = dispatchInfo.globalThreadIndex;
+    if (_ProbeCount <= 0 || id >= (uint)_ProbeCount) return;
+    ProbeSH direct = (ProbeSH)0;
+    ProbeSH indirect = (ProbeSH)0;
+    UnifiedRT::RayTracingAccelStruct accel = UNIFIED_RT_GET_ACCEL_STRUCT(_AccelStruct);
+    float3 probePosition = _ProbePositions[id];
+    // Seed by global probe index so each probe retains its sampling sequence
+    // when the standalone batch size changes.
+    uint globalProbeIndex = _ProbeIndexOffset + id;
+    uint nativeProbeIndex = globalProbeIndex;
+    uint probeSeed = Hash(globalProbeIndex ^ 0x9e3779b9u);
+    // Validity is a separate native APV integration pass. Keep it isolated
+    // from radiance so a radiance path can never change invalidity statistics.
+    if (_PassMode == 3)
+    {
+        float invalidSamples = 0.0f;
+        uint pixelSeed = PixelHash(uint2(globalProbeIndex, globalProbeIndex));
+        int sampleEnd = min(_SampleCount, _SampleStart + _SampleBatchSize);
+        for (int sample = _SampleStart; sample < sampleEnd; ++sample)
+        {
+            float3 primarySample = (_NativeProbeSampling != 0)
+                ? NativeProbePrimarySample3D((uint)sample, nativeProbeIndex)
+                : float3(StandalonePathSample2D((uint)sample, 0, pixelSeed), 0.0f);
+            float2 u = primarySample.xy;
+            UnifiedRT::Ray ray;
+            ray.origin = probePosition;
+            ray.direction = MapSquareToSphere(u);
+            ray.tMin = 0.0f;
+            ray.tMax = 1e30;
+            UnifiedRT::Hit hit = TraceAPVClosestHit(dispatchInfo, accel, 0xFFFFFFFF, ray, UnifiedRT::kRayFlagNone);
+            if (hit.IsValid() && !hit.isFrontFace)
+            {
+                UnifiedRT::InstanceData instanceInfo = UnifiedRT::GetInstance(hit.instanceID);
+                APVBakeMaterial material = _APVMaterials[instanceInfo.userMaterialID];
+                if (material.surface.z == 0)
+                    invalidSamples += 1.0f;
+            }
+        }
+        ProbeSH validity = (ProbeSH)0;
+        validity.validity = invalidSamples / max(1, _SampleCount);
+        validity.completedDispatch = _DispatchID;
+        _Out[id] = validity;
+        return;
+    }
+
+    if (_PassMode == 1)
+    {
+        AddBakedDirectSH(direct, dispatchInfo, accel, probePosition, probeSeed,
+            nativeProbeIndex);
+    }
+    // Unity's native probe integrator accounts for environment transport in
+    // IntegrateIndirectRadiance. Keep the probe-level environment samples in
+    // the indirect output so they receive the same post-process path as
+    // surface bounces and are not windowed as explicit direct lighting.
+    if (_PassMode == 2)
+        AddBakedEnvironmentSH(indirect, dispatchInfo, accel, probePosition,
+            PixelHash(uint2(globalProbeIndex, globalProbeIndex)), nativeProbeIndex);
+    // Direct integration also owns visible surface emission. Trace only the
+    // first segment with its own sample budget; the hit branch below stops
+    // before evaluating reflected lighting. Returning here used to discard
+    // emission because the indirect pass correctly excludes that segment.
+    int pathSampleCount = _PassMode == 1 ? _DirectSampleCount : _SampleCount;
+    // Each primary probe ray advances the standalone Sobol sample index;
+    // all bounces retain that index and select their own dimension pairs.
+    uint sobolPixelSeed = PixelHash(uint2(globalProbeIndex, globalProbeIndex));
+    int pathSampleEnd = min(pathSampleCount, _SampleStart + _SampleBatchSize);
+    for (int sample = _SampleStart; sample < pathSampleEnd; ++sample)
+    {
+        uint seed = probeSeed ^ Hash((uint)sample);
+        float3 primarySample = (_NativeProbeSampling != 0)
+            ? NativeProbePrimarySample3D((uint)sample, nativeProbeIndex)
+            : float3(StandalonePathSample2D((uint)sample, 0, sobolPixelSeed), 0.0f);
+        float2 u = primarySample.xy;
+        float3 rayDirection = MapSquareToSphere(u);
+        float3 probeDirection = rayDirection;
+        float3 rayOrigin = probePosition;
+        float3 throughput = 1;
+        float3 radiance = 0;
+        float3 directPathRadiance = 0;
+        for (int bounce = 0; bounce <= _MaxBounces; ++bounce)
+        {
+            UnifiedRT::Ray ray;
+            ray.origin = rayOrigin;
+            ray.direction = rayDirection;
+            // The probe primary ray starts at the exact probe position. Each
+            // continuation already uses OffsetRayOrigin semantics through
+            // rayOrigin below, so native tMin remains zero for both cases.
+            ray.tMin = 0.0f;
+            ray.tMax = 1e30;
+            UnifiedRT::Hit hit = TraceAPVClosestHit(dispatchInfo, accel, 0xFFFFFFFF, ray, UnifiedRT::kRayFlagNone);
+            if (!hit.IsValid())
+            {
+                // Environment transport is represented by the independent
+                // probe environment pass and the explicit surface NEE term
+                // above. A GI continuation miss carries no sky radiance in
+                // Unity's native integrator.
+                break;
+            }
+
+            UnifiedRT::InstanceData instanceInfo = UnifiedRT::GetInstance(hit.instanceID);
+            UnifiedRT::HitGeomAttributes geometry = UnifiedRT::FetchHitGeomAttributesInWorldSpace(instanceInfo, hit);
+            APVBakeMaterial material = _APVMaterials[instanceInfo.userMaterialID];
+            // A disallowed backface terminates transport. It is not an
+            // environment miss and must not inject sky into enclosed geometry.
+            if (!hit.isFrontFace && material.surface.z == 0)
+                break;
+            // The face normal is oriented against the incoming ray and used for
+            // all subsequent ray origins. The interpolated normal is only
+            // flipped into the face-normal hemisphere for BRDF evaluation.
+            float3 faceNormal = geometry.faceNormal;
+            if (dot(faceNormal, faceNormal) < 1e-8)
+                faceNormal = geometry.normal;
+            faceNormal = normalize(faceNormal);
+            if (dot(ray.direction, faceNormal) >= 0)
+                faceNormal = -faceNormal;
+            float3 normal = geometry.normal;
+            if (dot(normal, normal) < 1e-8)
+                normal = faceNormal;
+            normal = normalize(normal);
+            if (dot(normal, faceNormal) < 0)
+                normal = -normal;
+            // Meta maps are evaluated in material UV0 space, so sample them
+            // with the authored UV0, just like source textures and cutout masks.
+            float3 albedo = APVSampleAlbedo(material, geometry.uv0).rgb;
+            float3 emission = APVSampleEmission(material, geometry.uv0);
+            // The native baker puts first-hit emission in its direct pass;
+            // the indirect pass deliberately skips it because that pass is
+            // combined with the direct result later. Emission after a diffuse
+            // bounce belongs to indirect transport.
+            if (bounce == 0)
+            {
+                if (_PassMode == 1)
+                    directPathRadiance += throughput * emission;
+            }
+            else
+                radiance += throughput * emission;
+            // The direct pass owns only the probe's direct lighting and the
+            // first visible emission segment. Continuations belong to the
+            // independent indirect pass.
+            if (_PassMode == 1)
+                break;
+            uint nativeBounce = (uint)(bounce + 1);
+            radiance += throughput * EvaluateDirect(dispatchInfo, accel, geometry.position,
+                normal, faceNormal, albedo, (uint)sample, nativeBounce,
+                nativeProbeIndex, Hash(seed ^ (uint)(bounce + 0x1739)));
+            if (bounce + 1 >= _MaxBounces)
+                break;
+            // Surface scattering uses pair 1 in each standalone bounce block.
+            // The APV RadeonRays continuation kernel starts at native bounce
+            // 1; the primary probe ray is the separate bounce 0 segment.
+            // Keep the three Sobol dimensions aligned with that call chain.
+            float3 nativeBounceSample = 0.0f;
+            if (_NativeProbeSampling != 0)
+                nativeBounceSample = NativeProbeBounceSample3D(
+                    (uint)sample, nativeBounce, nativeProbeIndex);
+            uint scatterSample = (uint)(bounce * QRNG_SAMPLES_PER_BOUNCE + 1);
+            float2 bounceU = (_NativeProbeSampling != 0)
+                ? nativeBounceSample.xy
+                : StandalonePathSample2D((uint)sample, scatterSample, sobolPixelSeed);
+            // Environment NEE is evaluated before roulette, with the same
+            // sample dimensions as continuation. MIS changes the proposal,
+            // not whether reflected sky contributes.
+            if (_EnvironmentSampleCount > 0 && bounce + 1 < _MaxBounces)
+            {
+                float3 environmentU = _NativeProbeSampling != 0 ? nativeBounceSample :
+                    float3(bounceU, StandalonePathSample2D((uint)sample,
+                        scatterSample + 1, sobolPixelSeed).x);
+                AddSurfaceEnvironmentRadiance(dispatchInfo, accel,
+                    geometry.position, normal, faceNormal, albedo, throughput,
+                    environmentU, radiance);
+            }
+            // Sample the geometric hemisphere for diffuse continuation, as
+            // the RadeonRays probe baker does. Smooth vertex normals still
+            // evaluate the direct-light cosine above, but must not tilt this
+            // distribution through the triangle and lose reflected energy.
+            float3 sampledDirection;
+            float brdfPdf;
+            if (!SampleNativeDiffuseContinuation(bounceU, faceNormal, faceNormal, -rayDirection,
+                sampledDirection, brdfPdf) || brdfPdf <= 0.0f ||
+                dot(sampledDirection, sampledDirection) <= 1e-12f)
+                break;
+            rayDirection = sampledDirection;
+            // Push off along the geometric normal with a scale-aware error
+            // term and the configured minimum distance.
+            rayOrigin = OffsetRayOrigin(geometry.position, faceNormal, _RayOffset);
+            // For Lambert diffuse, f * cos(theta) / pdf is exactly one;
+            // only the albedo remains in the path throughput. Keep the
+            // explicit pdf guard above so no invalid sample can inject NaNs.
+            throughput *= albedo;
+
+            // After the initial diffuse scattering, terminate low-throughput
+            // paths with Russian roulette and rescale survivors to keep the
+            // estimator unbiased. Pair 3 supplies the roulette decision.
+            // Sponza's native minBounces is 2 and this local loop labels the
+            // first continuation as bounce 1, so the native gate is reached
+            // when the local bounce is at least one.
+            if ((int)nativeBounce >= _MinBounces)
+            {
+                float continuationProbability = saturate(max(throughput.x,
+                    max(throughput.y, throughput.z)));
+                if (continuationProbability <= 0.0f)
+                    break;
+                float roulette = (_NativeProbeSampling != 0)
+                    ? nativeBounceSample.z
+                    : StandalonePathSample2D((uint)sample,
+                        (uint)(bounce * QRNG_SAMPLES_PER_BOUNCE + 3), sobolPixelSeed).x;
+                if (roulette > continuationProbability)
+                    break;
+                throughput /= continuationProbability;
+            }
+        }
+
+        if (_PassMode == 1 && (directPathRadiance.x != 0 || directPathRadiance.y != 0 || directPathRadiance.z != 0))
+            AddIrradianceSH(direct, directPathRadiance, probeDirection,
+                12.566370614359172 / max(1, pathSampleCount));
+
+            if (radiance.x != 0 || radiance.y != 0 || radiance.z != 0)
+            AddIrradianceSH(indirect, radiance, probeDirection, 12.566370614359172 / max(1, pathSampleCount));
+    }
+    if (_PassMode == 1)
+        WindowDirectSH(direct);
+    ProbeSH sh = (ProbeSH)0;
+    if (_PassMode == 1)
+        sh = direct;
+    else
+        sh = indirect;
+    sh.completedDispatch = _DispatchID;
+    _Out[id] = sh;
+}

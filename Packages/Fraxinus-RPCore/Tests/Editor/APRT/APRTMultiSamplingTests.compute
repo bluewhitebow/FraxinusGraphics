@@ -1,0 +1,25 @@
+#pragma kernel Sample
+#pragma target 4.5
+
+#define APRT_SAMPLING_ATLAS
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Packages/com.unity.render-pipelines.core/Runtime/Lighting/APRT/APRTSampling.hlsl"
+
+StructuredBuffer<float3> _SamplePositions;
+RWStructuredBuffer<float4> _SampleResults;
+
+[numthreads(1, 1, 1)]
+void Sample(uint3 id : SV_DispatchThreadID)
+{
+    float3 position = _SamplePositions[id.x];
+    float3 normal = float3(0, 1, 0);
+    float3 gi, diffuse, emission;
+    float ambient;
+    bool hasGI = APRTSampleGI(position, normal, gi);
+    bool hasDiffuse = APRTSampleDiffuseGI(position, normal, diffuse, ambient);
+    bool hasEmission = APRTSampleEmissionGI(position, normal, emission);
+    _SampleResults[id.x * 4] = float4(gi, hasGI ? 1 : 0);
+    _SampleResults[id.x * 4 + 1] = float4(diffuse, hasDiffuse ? 1 : 0);
+    _SampleResults[id.x * 4 + 2] = float4(emission, hasEmission ? 1 : 0);
+    _SampleResults[id.x * 4 + 3] = float4(ambient, 0, 0, 0);
+}

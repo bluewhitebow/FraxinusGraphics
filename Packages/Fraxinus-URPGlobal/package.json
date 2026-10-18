@@ -1,0 +1,17 @@
+{
+  "name": "com.unity.render-pipelines.universal-config",
+  "description": "Configuration files for the unofficial Fraxinus URP fork on Unity 2022.3. Requires the matching Fraxinus Core and URP packages.",
+  "version": "14.0.99",
+  "unity": "2022.3",
+  "displayName": "Fraxinus URP Global",
+  "documentationUrl": "https://github.com/bluewhitebow/FraxinusGraphics/blob/main/Packages/Fraxinus-URPGlobal/README.md",
+  "changelogUrl": "https://github.com/bluewhitebow/FraxinusGraphics/blob/main/Packages/Fraxinus-URPGlobal/CHANGELOG.md",
+  "licensesUrl": "https://github.com/bluewhitebow/FraxinusGraphics/blob/main/Packages/Fraxinus-URPGlobal/LICENSE.md",
+  "author": {
+    "name": "bluewhitebow",
+    "url": "https://github.com/bluewhitebow"
+  },
+  "dependencies": {
+    "com.unity.render-pipelines.core": "14.0.99"
+  }
+}

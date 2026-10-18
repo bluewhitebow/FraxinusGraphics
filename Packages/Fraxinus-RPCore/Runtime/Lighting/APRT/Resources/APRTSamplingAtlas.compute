@@ -1,0 +1,51 @@
+#pragma kernel CopyProbes
+#pragma kernel CopyTopology
+#pragma target 4.5
+
+StructuredBuffer<float4> _SourceSH, _SourceSkySH, _SourceAxis, _SourceMoments;
+StructuredBuffer<float3> _SourcePositions;
+StructuredBuffer<float> _SourceValidity;
+RWStructuredBuffer<float4> _TargetSH, _TargetSkySH, _TargetAxis, _TargetMoments;
+RWStructuredBuffer<float3> _TargetPositions;
+RWStructuredBuffer<float> _TargetValidity;
+int _CopyProbeCount, _CopyProbeOffset;
+
+[numthreads(64, 1, 1)]
+void CopyProbes(uint3 dispatchId : SV_DispatchThreadID)
+{
+    uint index = dispatchId.x;
+    if (index >= (uint)_CopyProbeCount) return;
+    uint target = index + (uint)_CopyProbeOffset;
+    _TargetPositions[target] = _SourcePositions[index];
+    _TargetValidity[target] = _SourceValidity[index];
+    [unroll] for (uint coefficient = 0; coefficient < 4; ++coefficient)
+    {
+        _TargetSH[target * 4 + coefficient] = _SourceSH[index * 4 + coefficient];
+        _TargetSkySH[target * 4 + coefficient] = _SourceSkySH[index * 4 + coefficient];
+    }
+    [unroll] for (uint axis = 0; axis < 6; ++axis)
+    {
+        _TargetAxis[target * 6 + axis] = _SourceAxis[index * 6 + axis];
+        _TargetMoments[target * 6 + axis] = _SourceMoments[index * 6 + axis];
+    }
+}
+
+StructuredBuffer<int4> _SourceBricks;
+StructuredBuffer<int> _SourceBrickProbes, _SourceHash, _SourceGrid;
+StructuredBuffer<float4x4> _SourceDomains;
+RWStructuredBuffer<int4> _TargetBricks;
+RWStructuredBuffer<int> _TargetBrickProbes, _TargetHash, _TargetGrid;
+RWStructuredBuffer<float4x4> _TargetDomains;
+int _CopyTopologyCount0, _CopyTopologyCount1, _CopyTopologyCount2, _CopyTopologyCount3, _CopyTopologyCount4;
+int _CopyTopologyOffset0, _CopyTopologyOffset1, _CopyTopologyOffset2, _CopyTopologyOffset3, _CopyTopologyOffset4;
+
+[numthreads(64, 1, 1)]
+void CopyTopology(uint3 dispatchId : SV_DispatchThreadID)
+{
+    uint index = dispatchId.x;
+    if (index < (uint)_CopyTopologyCount0) _TargetBricks[index + _CopyTopologyOffset0] = _SourceBricks[index];
+    if (index < (uint)_CopyTopologyCount1) _TargetBrickProbes[index + _CopyTopologyOffset1] = _SourceBrickProbes[index];
+    if (index < (uint)_CopyTopologyCount2) _TargetHash[index + _CopyTopologyOffset2] = _SourceHash[index];
+    if (index < (uint)_CopyTopologyCount3) _TargetGrid[index + _CopyTopologyOffset3] = _SourceGrid[index];
+    if (index < (uint)_CopyTopologyCount4) _TargetDomains[index + _CopyTopologyOffset4] = _SourceDomains[index];
+}

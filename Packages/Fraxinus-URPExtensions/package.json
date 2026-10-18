@@ -1,0 +1,42 @@
+{
+  "name": "com.unity.render-pipelines.universal",
+  "description": "Unofficial Fraxinus URP fork for Unity 2022.3, with RenderGraph, APV, APRTV and temporal upscaling backports. Replaces the official URP package; custom passes require RecordRenderGraph support.",
+  "version": "14.0.99",
+  "unity": "2022.3",
+  "displayName": "Fraxinus URP Extensions",
+  "documentationUrl": "https://github.com/bluewhitebow/FraxinusGraphics/blob/main/Packages/Fraxinus-URPExtensions/README.md",
+  "changelogUrl": "https://github.com/bluewhitebow/FraxinusGraphics/blob/main/Packages/Fraxinus-URPExtensions/CHANGELOG.md",
+  "licensesUrl": "https://github.com/bluewhitebow/FraxinusGraphics/blob/main/Packages/Fraxinus-URPExtensions/LICENSE.md",
+  "author": {
+    "name": "bluewhitebow",
+    "url": "https://github.com/bluewhitebow"
+  },
+  "dependencies": {
+    "com.unity.mathematics": "1.2.1",
+    "com.unity.burst": "1.8.9",
+    "com.unity.collections": "2.6.6",
+    "com.unity.render-pipelines.core": "14.0.99",
+    "com.unity.shadergraph": "14.0.12",
+    "com.unity.render-pipelines.universal-config": "14.0.99"
+  },
+  "keywords": [
+    "graphics",
+    "performance",
+    "rendering",
+    "mobile",
+    "render",
+    "pipeline"
+  ],
+  "samples": [
+    {
+      "displayName": "URP Package Samples",
+      "description": "Collection of scenes showcasing different features of the Universal Render Pipeline.",
+      "path": "Samples~/URPPackageSamples"
+    },
+    {
+      "displayName": "URP RenderGraph Samples",
+      "description": "Collection of scripts with some examples of RenderGraph and how it is used within the Universal Render Pipeline.",
+      "path": "Samples~/URPRenderGraphSamples"
+    }
+  ]
+}

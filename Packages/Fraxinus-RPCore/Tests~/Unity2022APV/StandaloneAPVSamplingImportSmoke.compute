@@ -1,0 +1,24 @@
+#pragma kernel ReadSamplingTables
+
+Texture2D<float> _Sequence;
+Texture2D<float> _Ranking;
+Texture2D<float> _Scrambling;
+StructuredBuffer<int4> _Coordinates;
+RWStructuredBuffer<uint> _Values;
+int _Count;
+
+[numthreads(64, 1, 1)]
+void ReadSamplingTables(uint id : SV_DispatchThreadID)
+{
+    if (id >= (uint)_Count)
+        return;
+    int4 coordinate = _Coordinates[id];
+    float value = 0.0f;
+    if (coordinate.x == 0)
+        value = _Sequence.Load(int3(coordinate.yz, 0));
+    else if (coordinate.x == 1)
+        value = _Ranking.Load(int3(coordinate.yz, 0));
+    else
+        value = _Scrambling.Load(int3(coordinate.yz, 0));
+    _Values[id] = (uint)round(saturate(value) * 255.0f);
+}

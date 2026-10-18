@@ -1,0 +1,217 @@
+#pragma kernel Relight
+#pragma target 4.5
+
+// The diffuse model outputs irradiance / pi; APRTV outputs art-directed radiance,
+// composed once as additional emission by URP.
+StructuredBuffer<float4> _APRTBakedAxis;
+RWStructuredBuffer<float4> _APRTRuntimeSH;
+int _APRTProbeCount;
+int _APRTLightingModel;
+float _APRTIndirectIntensity;
+float _APRTIndirectContrast;
+float _APRTSaturationBoost;
+float _APRTShadowGIVisibility;
+float _APRTSkyVisibilityPower;
+StructuredBuffer<float> _APRTSkyTransfer;
+StructuredBuffer<float3> _APRTSkyTransferRGB;
+RWStructuredBuffer<float4> _APRTSkyIrradianceSH;
+int _APRTHasSkyIrradianceTransfer;
+int _APRTHasSkyBounceTransfer;
+float _APRTSkyIrradianceIntensity;
+float4 _APRTSkyRadianceSH[9];
+float _APRTBounceIntensity;
+float _APRTTemporalBlend;
+float4 _APRTLightColors[4];
+float4 _APRTLightDirections[4];
+float4 _APRTScenarioLightColors[4];
+float4 _APRTScenarioLightDirections[4];
+float4 _APRTScenarioSkyRadianceSH[9];
+float _APRTScenarioBlend;
+StructuredBuffer<float4> _APRTBakedDirectionalSH;
+StructuredBuffer<float4> _APRTBakedSkyIrradianceSH;
+int _APRTUseBakedScenarios;
+int _APRTActiveScenarioOffset;
+int _APRTOtherScenarioOffset;
+
+float4 APRTLightColor(uint index, bool otherScenario)
+{
+    return otherScenario ? _APRTScenarioLightColors[index] : _APRTLightColors[index];
+}
+
+float3 APRTLightDirection(uint index, bool otherScenario)
+{
+    return otherScenario ? _APRTScenarioLightDirections[index].xyz : _APRTLightDirections[index].xyz;
+}
+
+float4 SampleAxisTransfer(uint probeIndex, float3 direction)
+{
+    float3 weight = abs(direction);
+    weight /= max(weight.x + weight.y + weight.z, 1e-6);
+    uint offset = probeIndex * 6;
+    return _APRTBakedAxis[offset + (direction.x < 0 ? 1 : 0)] * weight.x
+         + _APRTBakedAxis[offset + (direction.y < 0 ? 3 : 2)] * weight.y
+         + _APRTBakedAxis[offset + (direction.z < 0 ? 5 : 4)] * weight.z;
+}
+
+float4 SampleReferenceAxis(uint probeIndex, float3 direction)
+{
+    float3 positive = max(0.00001, direction), negative = max(0.00001, -direction);
+    float total = positive.x + positive.y + positive.z + negative.x + negative.y + negative.z;
+    positive /= total; negative /= total;
+    uint offset = probeIndex * 6;
+    return _APRTBakedAxis[offset] * positive.x + _APRTBakedAxis[offset + 1] * negative.x
+         + _APRTBakedAxis[offset + 2] * positive.y + _APRTBakedAxis[offset + 3] * negative.y
+         + _APRTBakedAxis[offset + 4] * positive.z + _APRTBakedAxis[offset + 5] * negative.z;
+}
+
+void AccumulateReference(inout float3 l0, inout float3 l1x, inout float3 l1y, inout float3 l1z, float3 direction, float3 radiance)
+{
+    l0 += radiance * 0.5;
+    l1x += radiance * 0.25 * direction.x;
+    l1y += radiance * 0.25 * direction.y;
+    l1z += radiance * 0.25 * direction.z;
+}
+
+void RelightReference(uint probeIndex, bool otherScenario, out float3 l0, out float3 l1x, out float3 l1y, out float3 l1z, out float4 skyTransfer)
+{
+    l0 = l1x = l1y = l1z = 0;
+    uint axisOffset = probeIndex * 6;
+    skyTransfer = float4(
+        (_APRTBakedAxis[axisOffset].w + _APRTBakedAxis[axisOffset + 1].w + _APRTBakedAxis[axisOffset + 2].w
+        + _APRTBakedAxis[axisOffset + 3].w + _APRTBakedAxis[axisOffset + 4].w + _APRTBakedAxis[axisOffset + 5].w) / 6.0,
+        (_APRTBakedAxis[axisOffset].w - _APRTBakedAxis[axisOffset + 1].w) * 0.5,
+        (_APRTBakedAxis[axisOffset + 2].w - _APRTBakedAxis[axisOffset + 3].w) * 0.5,
+        (_APRTBakedAxis[axisOffset + 4].w - _APRTBakedAxis[axisOffset + 5].w) * 0.5);
+    [unroll] for (uint lightIndex = 0; lightIndex < 4; ++lightIndex)
+    {
+        float4 light = APRTLightColor(lightIndex, otherScenario);
+        if (light.w < 0.5) continue;
+        float3 direction = APRTLightDirection(lightIndex, otherScenario);
+        float4 direct = SampleReferenceAxis(probeIndex, direction);
+        float4 bounce = SampleReferenceAxis(probeIndex, -direction);
+        float3 albedo = bounce.rgb;
+        float maximum = max(albedo.r, max(albedo.g, albedo.b));
+        float3 normalizedAlbedo = albedo / (maximum + 0.001);
+        float3 pureAlbedo = pow(max(1e-5, normalizedAlbedo), max(1.0, _APRTSaturationBoost)) * maximum;
+        float minimum = min(albedo.r, min(albedo.g, albedo.b));
+        float purity = saturate((maximum - minimum) / (maximum + 0.001));
+        float3 bounceRadiance = light.rgb * pureAlbedo * (1 - bounce.w) * _APRTIndirectIntensity;
+        float3 directRadiance = light.rgb * direct.w;
+        AccumulateReference(l0, l1x, l1y, l1z, direction, directRadiance);
+        AccumulateReference(l0, l1x, l1y, l1z, -direction, bounceRadiance);
+        l0 += bounceRadiance * purity * 0.5;
+    }
+    float responsePower = _APRTSkyVisibilityPower > 0 ? _APRTSkyVisibilityPower : 2;
+    float skyGate = pow(max(saturate(skyTransfer.x), 1e-5), max(responsePower, 0.25));
+    float energy = dot(max(l0, 0), float3(0.2126, 0.7152, 0.0722));
+    float colorGate = smoothstep(0.04, 0.35, energy * max(_APRTIndirectContrast, 1));
+    float combinedGate = skyGate * colorGate;
+    float giGate = lerp(saturate(_APRTShadowGIVisibility), 1.0, combinedGate);
+    l0 *= giGate; l1x *= giGate; l1y *= giGate; l1z *= giGate;
+    float3 magnitude = sqrt(l1x * l1x + l1y * l1y + l1z * l1z);
+    float3 scale = min(1.0, max(l0 * 0.95, 0) / max(magnitude, 1e-5));
+    l1x *= scale; l1y *= scale; l1z *= scale;
+    l0 *= _APRTIndirectIntensity; l1x *= _APRTIndirectIntensity; l1y *= _APRTIndirectIntensity; l1z *= _APRTIndirectIntensity;
+    skyTransfer = float4(combinedGate, skyTransfer.yzw * combinedGate);
+}
+
+void RelightDirectional(uint probeIndex, bool otherScenario, out float3 l0, out float3 l1x,
+    out float3 l1y, out float3 l1z, out float4 skyTransfer)
+{
+    l0 = l1x = l1y = l1z = 0;
+    skyTransfer = 0;
+    if (_APRTLightingModel == 1)
+        RelightReference(probeIndex, otherScenario, l0, l1x, l1y, l1z, skyTransfer);
+    else
+    {
+    [unroll] for (uint lightIndex = 0; lightIndex < 4; ++lightIndex)
+    {
+        float4 light = APRTLightColor(lightIndex, otherScenario);
+        float3 direction = APRTLightDirection(lightIndex, otherScenario);
+        float lengthSquared = dot(direction, direction);
+        if (light.w <= 0 || lengthSquared < 1e-8) continue;
+        direction *= rsqrt(lengthSquared);
+        float4 surface = SampleAxisTransfer(probeIndex, -direction);
+        float incomingVisibility = saturate(SampleAxisTransfer(probeIndex, direction).w);
+        // Opposite surfaces receive the sun. Both miss fractions stop empty-space bounce energy.
+        float3 bounce = max(light.rgb, 0) * surface.rgb * (1 - saturate(surface.w)) * incomingVisibility * _APRTBounceIntensity;
+        l0 += bounce * 0.5;
+        l1x -= bounce * direction.x * 0.25;
+        l1y -= bounce * direction.y * 0.25;
+        l1z -= bounce * direction.z * 0.25;
+    }
+    // Keep the first-order representation nonnegative for every receiver normal.
+    float3 l1Length = sqrt(l1x * l1x + l1y * l1y + l1z * l1z);
+    float3 scale = min(1.0, max(l0, 0) / max(l1Length, 1e-6));
+    l1x *= scale; l1y *= scale; l1z *= scale;
+    }
+}
+
+float3 RelightSky(uint probeIndex, uint row, bool otherScenario)
+{
+    float3 irradiance = 0;
+    if (_APRTHasSkyIrradianceTransfer != 0)
+    {
+        [unroll] for (uint coefficient = 0; coefficient < 9; ++coefficient)
+        {
+            float3 radiance = otherScenario ? _APRTScenarioSkyRadianceSH[coefficient].rgb : _APRTSkyRadianceSH[coefficient].rgb;
+            if (_APRTHasSkyBounceTransfer != 0)
+                irradiance += radiance * _APRTSkyTransferRGB[probeIndex * 36 + row * 9 + coefficient];
+            else
+                irradiance += radiance * _APRTSkyTransfer[probeIndex * 36 + row * 9 + coefficient];
+        }
+    }
+    return irradiance * _APRTSkyIrradianceIntensity;
+}
+
+[numthreads(64, 1, 1)]
+void Relight(uint3 id : SV_DispatchThreadID)
+{
+    uint probeIndex = id.x;
+    if (probeIndex >= (uint)_APRTProbeCount) return;
+    uint outputOffset = probeIndex * 4;
+    if (_APRTUseBakedScenarios != 0)
+    {
+        [unroll] for (uint row = 0; row < 4; ++row)
+        {
+            uint a = _APRTActiveScenarioOffset + outputOffset + row;
+            uint b = _APRTOtherScenarioOffset + outputOffset + row;
+            float4 directional = lerp(_APRTBakedDirectionalSH[a], _APRTBakedDirectionalSH[b], _APRTScenarioBlend);
+            float4 sky = lerp(_APRTBakedSkyIrradianceSH[a], _APRTBakedSkyIrradianceSH[b], _APRTScenarioBlend);
+            _APRTRuntimeSH[outputOffset + row] = lerp(_APRTRuntimeSH[outputOffset + row], directional, _APRTTemporalBlend);
+            _APRTSkyIrradianceSH[outputOffset + row] = lerp(_APRTSkyIrradianceSH[outputOffset + row], sky, _APRTTemporalBlend);
+        }
+        return;
+    }
+    float3 l0, l1x, l1y, l1z;
+    float4 skyTransfer;
+    // Evaluate each endpoint before interpolation: the APRTV gates and both
+    // models' directional normalization are nonlinear lighting operations.
+    bool otherOnly = _APRTScenarioBlend >= 1;
+    RelightDirectional(probeIndex, otherOnly, l0, l1x, l1y, l1z, skyTransfer);
+    if (_APRTScenarioBlend > 0 && !otherOnly)
+    {
+        float3 otherL0, otherL1x, otherL1y, otherL1z;
+        float4 otherSkyTransfer;
+        RelightDirectional(probeIndex, true, otherL0, otherL1x, otherL1y, otherL1z, otherSkyTransfer);
+        l0 = lerp(l0, otherL0, _APRTScenarioBlend);
+        l1x = lerp(l1x, otherL1x, _APRTScenarioBlend);
+        l1y = lerp(l1y, otherL1y, _APRTScenarioBlend);
+        l1z = lerp(l1z, otherL1z, _APRTScenarioBlend);
+        skyTransfer = lerp(skyTransfer, otherSkyTransfer, _APRTScenarioBlend);
+    }
+    _APRTRuntimeSH[outputOffset + 0] = lerp(_APRTRuntimeSH[outputOffset + 0], float4(l0, skyTransfer.x), _APRTTemporalBlend);
+    _APRTRuntimeSH[outputOffset + 1] = lerp(_APRTRuntimeSH[outputOffset + 1], float4(l1x, skyTransfer.y), _APRTTemporalBlend);
+    _APRTRuntimeSH[outputOffset + 2] = lerp(_APRTRuntimeSH[outputOffset + 2], float4(l1y, skyTransfer.z), _APRTTemporalBlend);
+    _APRTRuntimeSH[outputOffset + 3] = lerp(_APRTRuntimeSH[outputOffset + 3], float4(l1z, skyTransfer.w), _APRTTemporalBlend);
+    // The baked matrix integrates L_sky(w) * V_probe(w) over solid angle, then
+    // convolves with the clamped cosine kernel. Its output is E / pi in an L1
+    // polynomial, independent of APRTV's artistic sun gates and floor response.
+    [unroll] for (uint row = 0; row < 4; ++row)
+    {
+        float3 irradiance = RelightSky(probeIndex, row, otherOnly);
+        if (_APRTScenarioBlend > 0 && !otherOnly)
+            irradiance = lerp(irradiance, RelightSky(probeIndex, row, true), _APRTScenarioBlend);
+        _APRTSkyIrradianceSH[outputOffset + row] = lerp(_APRTSkyIrradianceSH[outputOffset + row], float4(irradiance, 0), _APRTTemporalBlend);
+    }
+}

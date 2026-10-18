@@ -1,0 +1,16 @@
+{
+    "name": "Unity.RenderPipelines.Universal.2D.Internal",
+    "rootNamespace": "",
+    "references": [
+        "Unity.Collections"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

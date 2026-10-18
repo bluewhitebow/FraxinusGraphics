@@ -1,0 +1,6 @@
+{
+  "name": "Unity.LightTransport.Editor.Tests",
+  "references": ["Unity.Rendering.LightTransport.Runtime"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": false
+}
