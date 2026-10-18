@@ -2,86 +2,71 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-A rendering package suite for Unity 2022.3, combining RenderGraph, cached shadows, upscaling and probe lighting. This repository contains package source; the Sponza demo shown below is not included.
+FraxinusGraphics brings RenderGraph rendering, cached cascaded shadows, spatial and temporal upscaling, external drawing interfaces, and GPU probe baking to Unity 2022.3. Four companion packages connect frame rendering, lighting tools and compute ray queries in one source tree.
+
+[Usage guide](docs/Usage.md) · [Packages](#packages) · [Rendering preview](#rendering-preview)
+
+## What it provides
+
+### RenderGraph rendering
+
+Raster, Compute and Unsafe passes declare their resources and dependencies, with resource lifetime management and a Native Render Pass bridge for Unity 2022. Supported passes can merge according to renderer and device conditions. Custom effects use the same graph workflow as the pipeline, with [RenderGraph samples](Packages/Fraxinus-URPExtensions/Samples~/URPRenderGraphSamples) as starting points.
+
+### Cached cascaded shadows
+
+Reuse eligible main-light shadow cascades per camera to reduce repeated rendering of unchanged cascades. Choose the first cached cascade and the refresh workload, and explicitly invalidate the cache when scene changes require it. [Cached CSM implementation](Packages/Fraxinus-URPExtensions/Runtime/Extensions/CachedCSM/CachedCascadeShadowMap.cs).
+
+### STP and SGSR upscaling
+
+Choose STP or SGSR2 for temporal reconstruction, or SGSR1 for spatial upscaling. The pipeline schedules the required camera jitter, motion vectors and history resources for the temporal paths. Render Scale and Upscaling Filter expose the resolution/quality tradeoff in the URP Asset; [the usage guide covers their requirements](docs/Usage.md#feature-controls).
+
+### HZB and external drawing
+
+Depth-pyramid snapshots are available to CPU and GPU consumers, alongside a current-frame HZB path. Camera, depth/normal and shadow drawing hooks let external instancing and terrain renderers participate in the pipeline. These are [integration interfaces](Packages/Fraxinus-URPExtensions/Runtime/UniversalRenderPipelineBRG.cs); consumers supply their own rendering or culling backend.
+
+### Standalone APV baking
+
+Bake adaptive probe lighting through compute ray tracing without DXR. The workflow includes adaptive placement, sky occlusion, Rendering Layers, static material emission and diffuse bounces, with Baking Sets, lighting scenarios and APV streaming for scene data. Baking runs through the editor with progress and cancellation. [Supported inputs and baking details](Packages/Fraxinus-RPCore/Documentation~/StandaloneAPVBaking.md).
+
+### Relightable probe volumes
+
+APRTV stores static geometry transport so directional lights and HDR skies can update probe lighting at runtime. It also supports independently loaded Baking Sets, blending between two baked lighting scenarios, per-camera Volume controls and probe debug views. [APRT workflow](Packages/Fraxinus-RPCore/Documentation~/APRT.md).
+
+### Compute ray queries
+
+Light Transport supplies mesh/instance acceleration structures, closest-hit and occlusion queries, GPU dispatch and sampling sequences for custom lighting calculations. Its Compute backend runs without hardware ray tracing; direct C# integration currently requires assembly access to its internal APIs. [Library interfaces](Packages/Fraxinus-Light-Transport/README.md).
+
+### Rendering workflows and diagnostics
+
+Use Forward, Forward+, Deferred or the separate 2D Renderer, with ShaderGraph, post-processing and camera stacking where supported. RTHandle, Blitter and Volume provide shared rendering utilities; Render Graph Viewer and Rendering Debugger help inspect passes, resources and lighting while developing extensions.
+
+## Packages
+
+| Package | Version | Responsibility |
+| --- | --- | --- |
+| [Fraxinus-RPCore](Packages/Fraxinus-RPCore/README.md) | `14.0.99` | Shared rendering infrastructure, probe data and baking workflows. |
+| [Fraxinus-URPExtensions](Packages/Fraxinus-URPExtensions/README.md) | `14.0.99` | Frame rendering, shadows, upscaling and external renderer integration. |
+| [Fraxinus-URPGlobal](Packages/Fraxinus-URPGlobal/README.md) | `14.0.99` | Platform light limits shared by C# and generated HLSL. |
+| [Fraxinus-Light-Transport](Packages/Fraxinus-Light-Transport/README.md) | `1.0.1` | GPU acceleration structures, ray queries and sampling. |
+
+## Start using it
+
+1. Reference all four local packages from one checkout. The [usage guide](docs/Usage.md#use-in-a-project) includes the relative-path `manifest.json` entries.
+2. Create or select a URP Asset and assign it in **Project Settings > Graphics**; check the active **Quality** override too.
+3. Enable cached shadows in **Lighting**, select an upscaler in **Quality**, or add RenderGraph features to the active Renderer. Probe lighting is selected separately under **Light Probe System**.
+
+The guide includes [feature controls](docs/Usage.md#feature-controls) and [APV/APRT baking steps](docs/Usage.md#probe-lighting). URP Global and Light Transport need no extra scene components for these built-in workflows.
+
+## Rendering preview
 
 ![APRTV indirect lighting off and on](docs/images/aprtv-gi-comparison.png)
 
 Same camera and lighting, with APRTV indirect lighting off and on. [GI response and probe visualization](docs/Screenshots.md).
 
-| Package | Version | Highlights |
-| --- | --- | --- |
-| [Fraxinus-RPCore](Packages/Fraxinus-RPCore/README.md) | `14.0.99` | RenderGraph, resource management, rendering utilities, probe lighting and standalone APV baking. |
-| [Fraxinus-URPExtensions](Packages/Fraxinus-URPExtensions/README.md) | `14.0.99` | RenderGraph rendering, cached cascaded shadows, HZB and external drawing interfaces, STP / SGSR upscaling, and probe lighting integration. |
-| [Fraxinus-URPGlobal](Packages/Fraxinus-URPGlobal/README.md) | `14.0.99` | Shared URP configuration that keeps platform light limits consistent between C# and HLSL. |
-| [Fraxinus-Light-Transport](Packages/Fraxinus-Light-Transport/README.md) | `1.0.1` | Compute-based GPU ray queries, acceleration structures and sampling tools for lighting and geometry calculations. |
+The images were captured from a separate Sponza demo; this repository contains package source.
 
-## Use in a project
+## Compatibility
 
-Keep this repository beside your Unity project:
+Custom passes use `RecordRenderGraph`; `Execute`-only extensions require migration. Cached shadows need explicit refresh for changes the cache does not track. Temporal upscalers have camera/device requirements. APRT requires rebaking after geometry or material changes and does not handle dynamic occlusion. See the [usage guide](docs/Usage.md) and package docs for the relevant limits.
 
-```text
-workspace/
-├─ FraxinusGraphics/Packages/
-└─ MyUnityProject/Packages/manifest.json
-```
-
-Add or replace these entries inside the project's `Packages/manifest.json` → `dependencies`, keeping its other dependencies:
-
-```json
-{
-  "com.unity.render-pipelines.core": "file:../../FraxinusGraphics/Packages/Fraxinus-RPCore",
-  "com.unity.render-pipelines.universal": "file:../../FraxinusGraphics/Packages/Fraxinus-URPExtensions",
-  "com.unity.render-pipelines.universal-config": "file:../../FraxinusGraphics/Packages/Fraxinus-URPGlobal",
-  "com.fraxinus.rendering.light-transport": "file:../../FraxinusGraphics/Packages/Fraxinus-Light-Transport"
-}
-```
-
-Paths are relative to the project's `Packages` directory. Reference all four packages from the same checkout. Core, URP and Config retain their Unity package IDs and replace the corresponding packages; keep those IDs unchanged. Unity resolves the other declared dependencies.
-
-1. Open the project in **Unity 2022.3** and let package import finish.
-2. Create **Assets > Create > Rendering > URP Asset (with Universal Renderer)**, or use an existing URP Asset.
-3. Assign it in **Edit > Project Settings > Graphics > Scriptable Render Pipeline Settings**. In **Quality**, check that the active level's **Render Pipeline Asset** uses the same asset or inherits Graphics.
-4. Open the renderer referenced by the asset's **Renderer List**. Use **Rendering Path** to choose Forward, Forward+ or Deferred; add custom rendering features on this renderer.
-
-URP Global supplies shared configuration and Light Transport supplies the compute tracing backend. Neither needs a scene component for the built-in workflows.
-
-## Feature controls
-
-| Feature | Where to start |
-| --- | --- |
-| Cached cascaded shadows | URP Asset → **Lighting**: set **Main Light** to **Per Pixel**, enable **Cast Shadows** and **Cached Main Light**, then set **Min Static Cascade** and **Cached Quality**. When a changed shadow caster needs a refresh, call `UniversalAdditionalCameraData.SetCachedCSMDirty()` on the affected camera. |
-| STP / SGSR | URP Asset → **Quality**: set **Render Scale**, for example `0.75`, and choose **Upscaling Filter**. STP is listed as **Spatial-Temporal Post-Processing**; SGSR uses **Snapdragon Game Super Resolution 1.0 / 2.0**. For temporal modes, start with a single Base camera, post-processing enabled and MSAA disabled. |
-| RenderGraph extensions | **Window > Package Manager > Fraxinus URP Extensions > Samples > URP RenderGraph Samples > Import**. Add an imported feature to the renderer's **Add Renderer Feature** list. These are code samples; some require a material or show their work only in the Frame Debugger. |
-| HZB / external drawing | Integrate through the [HZB and drawing interfaces](Packages/Fraxinus-URPExtensions/Runtime/UniversalRenderPipelineBRG.cs). Check capability and snapshot availability before consuming depth data. |
-| Shared shader configuration | Edit [ShaderConfig.cs](Packages/Fraxinus-URPGlobal/Runtime/ShaderConfig.cs), then run **Edit > Rendering > Generate Shader Includes** to update HLSL. |
-
-Custom passes must implement `RecordRenderGraph(RenderGraph, ContextContainer)`; an `Execute`-only pass needs migration. STP also requires compute and motion-vector support, with dynamic resolution and camera stacking disabled. DLSS / MetalFX currently fall back to Linear; Unity's native GPU Resident Drawer backend is unavailable on Unity 2022.
-
-## Probe lighting
-
-Select one backend in **URP Asset > Lighting > Light Probe System**:
-
-| Backend | Scene volume | Bake action |
-| --- | --- | --- |
-| **Adaptive Probe Volumes** | **GameObject > Light > Adaptive Probe Volume** | **Bake Probe Volumes** |
-| **Adaptive PRT Volumes (APRTV)** | **GameObject > Light > Adaptive PRT Volume** | **Bake APRT** |
-
-1. Save the scene. Enable **Contribute GI** on geometry that should contribute to baking, then place the corresponding volume around the area to light. Use Baked/Mixed lights for APV; APRT uses directional lights and the sky. Start with a small region; APRT's **Adaptive** layout handles adaptive probe placement.
-2. Open **Window > Rendering > Lighting**. Use the **Adaptive Probe Volumes** or **Adaptive Precompute Radiance Transfer** tab. Choose **Single Scene**, or create a **Baking Set** for multiple scenes and load/save every scene in that set.
-3. Adjust probe spacing and bounds, run the matching bake action, then save the scene. APRT also has **Bake APRT** in its volume Inspector. **Generate Lighting** does not start the standalone APV bake.
-
-For live APRT lighting, set the Baking Set's **Relighting > Lighting Source** to **Live Scene Lighting**. Add **Lighting > APRTV Options** to a Global Volume Profile and check the overrides you want to adjust. **GI Intensity** controls the overall contribution; **Sky Intensity** defaults to zero, so raise it to enable the scene skybox contribution. Directional lights and skybox changes can then relight the baked transport. Geometry or material changes require rebaking.
-
-For stored APRT lighting states, enable **Enable Lighting Scenarios** and **Enable Lighting Scenario Blending** on the URP Asset. Bake each Active Scenario, using **Probe Positions > Don't Recalculate** for subsequent states, then preview with **Blend Target / Blend Factor**. A successful scenario bake selects **Baked Lighting Scenarios**; switch back to **Live Scene Lighting** when you want GI to follow current scene lighting.
-
-APRT does not handle dynamic occlusion or point/spot-light transport. It keeps all probe cells for loaded scenes resident; size Baking Sets accordingly. APV's standalone compute baker does not require DXR.
-
-## Further reading
-
-- [APRT setup, scenarios and debug views](Packages/Fraxinus-RPCore/Documentation~/APRT.md)
-- [APRT integration with URP](Packages/Fraxinus-URPExtensions/Documentation~/APRT.md)
-- [Standalone APV baking and supported inputs](Packages/Fraxinus-RPCore/Documentation~/StandaloneAPVBaking.md)
-- [Light Transport APIs and limits](Packages/Fraxinus-Light-Transport/README.md)
-- [Rendering screenshots](docs/Screenshots.md)
-
-Unity-derived code is covered by the [Unity Companion License](Packages/Fraxinus-RPCore/LICENSE.md). See each package's license and third-party notices for its components.
+This is an independently maintained Unity fork. Unity-derived code follows the [Unity Companion License](Packages/Fraxinus-RPCore/LICENSE.md); individual packages retain their third-party notices.
