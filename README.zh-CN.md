@@ -4,7 +4,7 @@
 
 FraxinusGraphics 是面向 **Unity 2022.3** 的自定义渲染套件。四个配套包共同提供 RenderGraph 渲染、缓存级联阴影、STP/SGSR 升采样、外部绘制接口和 GPU 探针烘焙。
 
-[为什么选择 Fraxinus](#为什么不直接使用标准-urp-14) · [使用指南](docs/Usage.zh-CN.md) · [源码对照](docs/URP14Comparison.zh-CN.md) · [渲染效果](#渲染效果)
+[示例工程](https://github.com/bluewhitebow/FraxinusGraphicsDemo/blob/main/README.zh-CN.md#打开工程) · [为什么选择 Fraxinus](#为什么不直接使用标准-urp-14) · [使用指南](docs/Usage.zh-CN.md) · [源码对照](docs/URP14Comparison.zh-CN.md) · [渲染效果](#渲染效果)
 
 ## 为什么不直接使用标准 URP 14？
 
@@ -37,6 +37,10 @@ Core 承担[渲染图 API](Packages/Fraxinus-RPCore/Runtime/RenderGraph/RenderGr
 
 ## 开始使用
 
+建议先打开 [FraxinusGraphicsDemo](https://github.com/bluewhitebow/FraxinusGraphicsDemo/blob/main/README.zh-CN.md#打开工程)：使用 **Unity 2022.3.62f3** 运行已配置好的 Sponza 场景，体验重光照、探针调试、缓存阴影和升采样。Unity 会自动下载四个渲染包。
+
+接入自己的项目时：
+
 1. 按[使用指南](docs/Usage.zh-CN.md#在项目中使用)中的相对路径引用四个包。
 2. 创建或选择 URP Asset，在 **Project Settings > Graphics** 中指定，并检查当前 **Quality** 级别的覆盖设置。
 3. 在 **Lighting** 开启缓存阴影，在 **Quality** 选择升采样，或在当前 Renderer 中添加 RenderGraph 功能。探针光照通过 **Light Probe System** 单独选择。
@@ -53,7 +57,7 @@ Core 承担[渲染图 API](Packages/Fraxinus-RPCore/Runtime/RenderGraph/RenderGr
 
 Probe Volume 调试视图（APRTV 后端）。球体显示探针位置及光照响应；场景共加载了 4,563 个探针。
 
-图片来自独立的 Sponza Demo。本仓库包含四个渲染包，不包含 Demo 场景。
+可在 [FraxinusGraphicsDemo](https://github.com/bluewhitebow/FraxinusGraphicsDemo/blob/main/README.zh-CN.md) 中运行 Sponza 场景并体验这些功能。
 
 ## 兼容与边界
 

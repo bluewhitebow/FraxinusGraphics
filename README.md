@@ -4,7 +4,7 @@
 
 FraxinusGraphics is a custom rendering suite for **Unity 2022.3**. It combines RenderGraph rendering, cached cascaded shadows, STP/SGSR upscaling, external drawing interfaces and GPU probe baking across four companion packages.
 
-[Why Fraxinus](#why-fraxinus-instead-of-standard-urp-14) · [Usage guide](docs/Usage.md) · [Source comparison](docs/URP14Comparison.md) · [Rendering preview](#rendering-preview)
+[Runnable demo](https://github.com/bluewhitebow/FraxinusGraphicsDemo#open-the-project) · [Why Fraxinus](#why-fraxinus-instead-of-standard-urp-14) · [Usage guide](docs/Usage.md) · [Source comparison](docs/URP14Comparison.md) · [Rendering preview](#rendering-preview)
 
 ## Why Fraxinus instead of standard URP 14?
 
@@ -37,6 +37,10 @@ Core owns the [graph APIs](Packages/Fraxinus-RPCore/Runtime/RenderGraph/RenderGr
 
 ## Start using it
 
+Start with [FraxinusGraphicsDemo](https://github.com/bluewhitebow/FraxinusGraphicsDemo#open-the-project): open the configured Sponza scene in **Unity 2022.3.62f3** to try relighting, probe debugging, cached shadows and upscaling. Unity downloads the four rendering packages automatically.
+
+To use the packages in your own project:
+
 1. Reference all four packages using the relative paths in the [usage guide](docs/Usage.md#use-in-a-project).
 2. Create or select a URP Asset and assign it in **Project Settings > Graphics**; check the active **Quality** override too.
 3. Enable cached shadows in **Lighting**, select an upscaler in **Quality**, or add RenderGraph features to the active Renderer. Probe lighting is selected separately under **Light Probe System**.
@@ -53,7 +57,7 @@ Same camera and lighting; APRTV GI intensity changes from 0 to 1. [More probe-li
 
 Probe Volume debug view (APRTV backend). The spheres show probe positions and lighting response; the scene has 4,563 resident probes.
 
-Captured in a separate Sponza demo. This repository contains the four packages; the demo scene is not included.
+Explore the Sponza scene in [FraxinusGraphicsDemo](https://github.com/bluewhitebow/FraxinusGraphicsDemo).
 
 ## Compatibility
 
